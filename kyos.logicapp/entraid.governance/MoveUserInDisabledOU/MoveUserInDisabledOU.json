@@ -158,7 +158,7 @@
                                     }
                                 },
                                 "method": "get",
-                                "path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs/@{encodeURIComponent(body(''Create_job'')?[''properties'']?[''jobId''])}')]",
+                                "path": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('automationResourceGroupName'), '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/jobs/@{encodeURIComponent(body(''Create_job'')?[''properties'']?[''jobId''])}')]",
                                 "queries": {
                                     "x-ms-api-version": "2015-10-31"
                                 }

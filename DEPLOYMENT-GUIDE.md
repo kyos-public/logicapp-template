@@ -231,16 +231,28 @@ az deployment group create \
 
 **Error**: `The template parameter 'automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid' is not found.`
 
-**Solution**: The MoveUserInDisabledOU template had a leftover parameter reference from the original export. Fixed the automation account path reference:
+**Solution**: The MoveUserInDisabledOU template had **multiple** leftover parameter references from the original export. Fixed automation account path references in both Logic App actions:
+
+**Action 1 - Create_job**:
 
 ```json
-// ❌ BEFORE - Invalid parameter reference
+// ❌ BEFORE
 "path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs')]"
 
-// ✅ AFTER - Proper ARM template function
+// ✅ AFTER
 "path": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('automationResourceGroupName'), '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/jobs')]"
 ```
 
-This change allows the Logic App to properly reference the automation account using the parameterized values.
+**Action 2 - Get_status_of_job**:
+
+```json
+// ❌ BEFORE  
+"path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs/@{encodeURIComponent(body(''Create_job'')?[''properties'']?[''jobId''])}')]"
+
+// ✅ AFTER
+"path": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('automationResourceGroupName'), '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/jobs/@{encodeURIComponent(body(''Create_job'')?[''properties'']?[''jobId''])}')]"
+```
+
+Both references now use proper ARM template functions and parameterized values.
 
 All templates are now ready for cross-tenant deployment! 🎉
