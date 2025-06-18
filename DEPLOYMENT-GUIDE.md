@@ -2,6 +2,32 @@
 
 ## ✅ All Templates Updated Successfully!
 
+All Logic App ARM templates have been updated to support cross-tenant deployment and implement standardized resource tagging.
+
+## 🏷️ Standardized Tags Applied
+
+All resources (Logic Apps and API connections) now include these standardized tags:
+
+```json
+{
+  "WorkloadName": "SharedTools",
+  "ApplicationName": "IAM",
+  "DataClassification": "Low",
+  "BusinessCriticality": "Low",
+  "Owner": "Kyos",
+  "Environment": "Prod",
+  "CreatedBy": "Terraform",
+  "OperationTeam": "Infra"
+}
+```
+
+### Resource Types Tagged
+
+- ✅ **Microsoft.Logic/workflows** (Logic Apps)
+- ✅ **Microsoft.Web/connections** (API connections)
+
+## 📁 Template-Specific Updates
+
 ### 1. AddUserInOnpremGroup
 
 - ✅ Parameters updated to include location, automationAccountName, automationResourceGroupName
@@ -130,6 +156,9 @@ After deploying these templates to a new tenant, you'll need to:
 - **✅ Cross-Tenant Deployment**: Templates can now be deployed to any tenant without modification
 - **✅ No Pre-existing Connections**: Connections are created as part of the deployment
 - **✅ Location Flexibility**: Templates adapt to the target resource group location
+- **✅ Standardized Tagging**: All resources follow consistent tagging strategy for governance
+- **✅ Resource Tracking**: Tags enable better cost management and resource organization
+- **✅ Compliance Ready**: Tags support organizational compliance and operational requirements
 - **✅ Parameterized Configuration**: Easy to customize for different environments
 - **✅ Proper Dependencies**: Resources are deployed in the correct order
 - **✅ Managed Identity Support**: Preserved for secure authentication where applicable

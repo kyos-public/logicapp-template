@@ -28,6 +28,16 @@
             "apiVersion": "2016-06-01",
             "name": "keyvault-connection",
             "location": "[parameters('location')]",
+            "tags": {
+                "WorkloadName": "SharedTools",
+                "ApplicationName": "IAM",
+                "DataClassification": "Low",
+                "BusinessCriticality": "Low",
+                "Owner": "Kyos",
+                "Environment": "Prod",
+                "CreatedBy": "Terraform",
+                "OperationTeam": "Infra"
+            },
             "properties": {
                 "displayName": "Key Vault Connection",
                 "api": {

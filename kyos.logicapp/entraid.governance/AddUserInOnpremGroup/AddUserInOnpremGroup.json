@@ -35,6 +35,16 @@
             "apiVersion": "2016-06-01",
             "name": "azurefile-connection",
             "location": "[parameters('location')]",
+            "tags": {
+                "WorkloadName": "SharedTools",
+                "ApplicationName": "IAM",
+                "DataClassification": "Low",
+                "BusinessCriticality": "Low",
+                "Owner": "Kyos",
+                "Environment": "Prod",
+                "CreatedBy": "Terraform",
+                "OperationTeam": "Infra"
+            },
             "properties": {
                 "displayName": "Azure File Storage Connection",
                 "api": {
@@ -48,6 +58,16 @@
             "apiVersion": "2016-06-01", 
             "name": "azureautomation-connection",
             "location": "[parameters('location')]",
+            "tags": {
+                "WorkloadName": "SharedTools",
+                "ApplicationName": "IAM",
+                "DataClassification": "Low",
+                "BusinessCriticality": "Low",
+                "Owner": "Kyos",
+                "Environment": "Prod",
+                "CreatedBy": "Terraform",
+                "OperationTeam": "Infra"
+            },
             "properties": {
                 "displayName": "Azure Automation Connection",
                 "api": {
