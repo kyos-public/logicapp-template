@@ -50,7 +50,10 @@
                 "api": {
                     "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'azureautomation')]"
                 },
-                "parameterValues": {}
+                "parameterValueType": "Alternative",
+                "alternativeParameterValues": {
+                    "AutomationAccountName": "[parameters('automationAccountName')]"
+                }
             }
         },
         {
