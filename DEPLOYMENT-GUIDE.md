@@ -74,6 +74,7 @@ All resources (Logic Apps and API connections) now include these standardized ta
 - ✅ Dependencies added to Logic App resource
 - ✅ Parameter file updated
 - ✅ Managed Identity authentication preserved
+- ✅ **Key Vault connection configured for managed identity support**
 
 ### 6. EntraIDProvisioning
 
@@ -83,6 +84,17 @@ All resources (Logic Apps and API connections) now include these standardized ta
 - ✅ Dependencies added to Logic App resource
 - ✅ Parameter file updated
 - ✅ Managed Identity authentication preserved
+- ✅ **Key Vault connection configured for managed identity support**
+
+### 6. EntraIDProvisioning
+
+- ✅ Parameters updated to include location, keyVaultName
+- ✅ Hardcoded subscription ID replaced with subscription().subscriptionId
+- ✅ Connection resources added to template (keyvault)
+- ✅ Dependencies added to Logic App resource
+- ✅ Parameter file updated
+- ✅ Managed Identity authentication preserved
+- ✅ **Key Vault connection configured for managed identity support**
 
 ### 7. FinalTermination
 
@@ -182,5 +194,22 @@ az deployment group create \
   --parameters location="eastus" \
               keyVaultName="your-keyvault"
 ```
+
+## 🔧 Troubleshooting
+
+### Key Vault Managed Identity Connection Issue
+
+**Error**: `The workflow connection parameter 'keyvault' is not valid. The API connection 'keyvault' is not configured to support managed identity.`
+
+**Solution**: The Key Vault connection resources in `EntraIDProvisioning` and `OrderLicenses` templates have been updated with proper managed identity configuration:
+
+```json
+"parameterValueType": "Alternative",
+"alternativeParameterValues": {
+    "vaultName": "[parameters('keyVaultName')]"
+}
+```
+
+This allows the Logic App to authenticate to Key Vault using its system-assigned managed identity.
 
 All templates are now ready for cross-tenant deployment! 🎉

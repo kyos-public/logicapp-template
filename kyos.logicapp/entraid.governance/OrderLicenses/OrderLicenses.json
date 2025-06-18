@@ -45,6 +45,10 @@
                 },
                 "parameterValues": {
                     "vaultName": "[parameters('keyVaultName')]"
+                },
+                "parameterValueType": "Alternative",
+                "alternativeParameterValues": {
+                    "vaultName": "[parameters('keyVaultName')]"
                 }
             }
         },
