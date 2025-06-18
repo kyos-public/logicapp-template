@@ -197,19 +197,33 @@ az deployment group create \
 
 ## 🔧 Troubleshooting
 
-### Key Vault Managed Identity Connection Issue
+### Key Vault Managed Identity Connection Issues
 
-**Error**: `The workflow connection parameter 'keyvault' is not valid. The API connection 'keyvault' is not configured to support managed identity.`
+**Error 1**: `The workflow connection parameter 'keyvault' is not valid. The API connection 'keyvault' is not configured to support managed identity.`
+
+**Error 2**: `The API connection 'keyvault-connection' has invalid inputs for the managed identity. 'ParameterValues' property should be null or empty when the parameter value type is set to 'Alternative'.`
 
 **Solution**: The Key Vault connection resources in `EntraIDProvisioning` and `OrderLicenses` templates have been updated with proper managed identity configuration:
 
 ```json
-"parameterValueType": "Alternative",
-"alternativeParameterValues": {
-    "vaultName": "[parameters('keyVaultName')]"
+{
+    "properties": {
+        "displayName": "Key Vault Connection",
+        "api": {
+            "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'keyvault')]"
+        },
+        "parameterValueType": "Alternative",
+        "alternativeParameterValues": {
+            "vaultName": "[parameters('keyVaultName')]"
+        }
+    }
 }
 ```
 
-This allows the Logic App to authenticate to Key Vault using its system-assigned managed identity.
+**Key Points**:
+
+- When using `"parameterValueType": "Alternative"`, the `"parameterValues"` property must be omitted
+- Only `"alternativeParameterValues"` should contain the Key Vault name
+- This configuration allows the Logic App to authenticate to Key Vault using its system-assigned managed identity
 
 All templates are now ready for cross-tenant deployment! 🎉
