@@ -7,15 +7,15 @@
             "type": "String"
         },
         "automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid": {
-            "defaultValue": "/subscriptions/@{encodeURIComponent('41271998-9818-49dd-8b6a-2ca5ec3a7c50')}/resourceGroups/@{encodeURIComponent('rg-entra-provisioning-poc_gbo_eu')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('onprem-powershell-execution')}",
+            "defaultValue": "",
             "type": "String"
         },
         "connections_azureautomation_externalid": {
-            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/azureautomation",
+            "defaultValue": "",
             "type": "String"
         },
         "connections_acsemail_2_externalid": {
-            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/acsemail-2",
+            "defaultValue": "",
             "type": "String"
         }
     },

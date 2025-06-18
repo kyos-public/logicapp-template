@@ -6,13 +6,13 @@
             "value": null
         },
         "automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid": {
-            "value": null
+            "value": ""
         },
         "connections_azureautomation_externalid": {
-            "value": null
+            "value": ""
         },
         "connections_acsemail_2_externalid": {
-            "value": null
+            "value": ""
         }
     }
 }

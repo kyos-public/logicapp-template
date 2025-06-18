@@ -6,10 +6,10 @@
             "value": null
         },
         "connections_azurefile_1_externalid": {
-            "value": null
+            "value": ""
         },
         "connections_azureautomation_1_externalid": {
-            "value": null
+            "value": ""
         }
     }
 }

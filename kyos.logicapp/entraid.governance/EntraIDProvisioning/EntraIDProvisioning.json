@@ -7,7 +7,7 @@
             "type": "String"
         },
         "connections_keyvault_5_externalid": {
-            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/keyvault-5",
+            "defaultValue": "",
             "type": "String"
         }
     },
