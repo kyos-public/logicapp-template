@@ -50,8 +50,8 @@
                 "type": "SystemAssigned"
             },
             "tags": {
-                "WorkloadName": "IAM",
-                "ApplicationName": "Tools",
+                "WorkloadName": "SharedTools",
+                "ApplicationName": "IAM",
                 "DataClassification": "Low",
                 "BusinessCriticality": "Low",
                 "Owner": "Kyos",
