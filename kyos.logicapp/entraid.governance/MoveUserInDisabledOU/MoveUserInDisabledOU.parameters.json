@@ -1,0 +1,18 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_term_user_move_name": {
+            "value": null
+        },
+        "automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid": {
+            "value": null
+        },
+        "connections_azureautomation_externalid": {
+            "value": null
+        },
+        "connections_acsemail_2_externalid": {
+            "value": null
+        }
+    }
+}

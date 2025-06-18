@@ -1,0 +1,889 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_create_ad_from_snow_name": {
+            "defaultValue": "create-ad-from-snow",
+            "type": "String"
+        },
+        "connections_keyvault_5_externalid": {
+            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/keyvault-5",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_create_ad_from_snow_name')]",
+            "location": "switzerlandwest",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "snow_uri": {
+                            "defaultValue": "https://snow.com",
+                            "type": "String"
+                        },
+                        "snow_client_id": {
+                            "defaultValue": "client_id",
+                            "type": "String"
+                        },
+                        "snow_username": {
+                            "defaultValue": "username",
+                            "type": "String"
+                        },
+                        "graph_uri": {
+                            "defaultValue": "https://graph.microsoft.com",
+                            "type": "String"
+                        },
+                        "bulk_endpoint": {
+                            "defaultValue": "https://graph.microsoft.com/v1.0/servicePrincipals/<spid>/synchronization/jobs/<job>/bulkUpload",
+                            "type": "String"
+                        },
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 5
+                            },
+                            "evaluatedRecurrence": {
+                                "frequency": "Day",
+                                "interval": 5
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "Get_Token": {
+                            "runAfter": {
+                                "Get_Snow_Password": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "@{parameters('snow_uri')}/oauth_token.do",
+                                "method": "GET",
+                                "headers": {
+                                    "Content-Type": "application/x-www-form-urlencoded",
+                                    "Accept": "application/json"
+                                },
+                                "body": "grant_type=password&client_secret=@{body('Get_Snow_ClientSecret')}&client_id=@{parameters('snow_client_id')}&username=@{parameters('snow_username')}&password=@{body('Get_Snow_Password')}"
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
+                        "Parse_Token": {
+                            "runAfter": {
+                                "Get_Token": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('Get_Token')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string"
+                                        },
+                                        "scope": {
+                                            "type": "string"
+                                        },
+                                        "token_type": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "secureData": {
+                                    "properties": [
+                                        "inputs"
+                                    ]
+                                }
+                            }
+                        },
+                        "Get_Users": {
+                            "runAfter": {
+                                "Parse_Token": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "@{parameters('snow_uri')}/api/now/table/sys_user",
+                                "method": "GET",
+                                "headers": {
+                                    "Autorization": "Bearer @{body('Parse_Token')?['access_token']}"
+                                },
+                                "queries": {
+                                    "sysparm_query": "u_correlation_id=ENTRAID",
+                                    "sysparm_fields": "gender,first_name,last_name,name,u_initiales,u_grade,title,manager,u_diploma,u_azure_department,u_occupation_rate,u_start_date,u_end_date,mobile_phone,phone,u_apsys,u_azure_location,sys_id"
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
+                        "Parse_Users": {
+                            "runAfter": {
+                                "Get_Users": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('Get_Users')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "gender": {
+                                                        "type": "string"
+                                                    },
+                                                    "sys_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "phone": {
+                                                        "type": "string"
+                                                    },
+                                                    "mobile_phone": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "first_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "last_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_initiales": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_correlation_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_grade": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_diploma": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_azure_department": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_azure_location": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_txoccup": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_occupation_rate": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_end_date": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_start_date": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_apsys": {
+                                                        "type": "string"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "email": {
+                                                        "type": "string"
+                                                    },
+                                                    "manager": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": []
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "Initialize_JSONInputArray": {
+                            "runAfter": {
+                                "Parse_Users": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "JSONInputArray",
+                                        "type": "array",
+                                        "value": "@body('Parse_Users')?['result']"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_NumberOfRecordsToProcess": {
+                            "runAfter": {
+                                "Initialize_JSONInputArray": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "NumberOfRecordsToProcess",
+                                        "type": "integer",
+                                        "value": "@length(body('Parse_Users')?['result'])"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_IterationCount": {
+                            "runAfter": {
+                                "Initialize_NumberOfRecordsToProcess": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "IterationCount",
+                                        "type": "integer",
+                                        "value": 0
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_SCIMBulkPayload": {
+                            "runAfter": {
+                                "Initialize_IterationCount": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "SCIMBulkPayload",
+                                        "type": "string",
+                                        "value": "{\n  \"schemas\": [\n    \"urn:ietf:params:scim:api:messages:2.0:BulkRequest\"\n  ],\n  \"Operations\": [\n"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_InvocationDateTime": {
+                            "runAfter": {
+                                "Initialize_SCIMBulkPayload": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "InvocationDateTime",
+                                        "type": "string",
+                                        "value": "@{utcNow()}"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variables": {
+                            "runAfter": {
+                                "Initialize_InvocationDateTime": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "sAMAccountName",
+                                        "type": "string",
+                                        "value": "\"\""
+                                    },
+                                    {
+                                        "name": "mailAddress",
+                                        "type": "string",
+                                        "value": "\"\""
+                                    },
+                                    {
+                                        "name": "SANCounter",
+                                        "type": "integer",
+                                        "value": 0
+                                    },
+                                    {
+                                        "name": "UniqueSAN",
+                                        "type": "boolean",
+                                        "value": false
+                                    },
+                                    {
+                                        "name": "EIDCounter",
+                                        "type": "integer",
+                                        "value": 0
+                                    },
+                                    {
+                                        "name": "employeeId",
+                                        "type": "string",
+                                        "value": "\"\""
+                                    },
+                                    {
+                                        "name": "UniqueEID",
+                                        "type": "boolean",
+                                        "value": false
+                                    },
+                                    {
+                                        "name": "userPrincipalName",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "For_each": {
+                            "foreach": "@variables('JSONInputArray')",
+                            "actions": {
+                                "Until": {
+                                    "actions": {
+                                        "Compute_sAMAccountName": {
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "sAMAccountName",
+                                                "value": "@if(equals(variables('SANCounter'),0),concat(substring(items('For_each')?['first_name'],0,1),substring(items('For_each')?['last_name'],0,20)),concat(substring(items('For_each')?['first_name'],0,1),substring(items('For_each')?['last_name'],0,20),variables('SANCounter')))"
+                                            }
+                                        },
+                                        "HTTP_Check_SAN": {
+                                            "runAfter": {
+                                                "Compute_sAMAccountName": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "@{parameters('graph_uri')}/v1.0/users",
+                                                "method": "GET",
+                                                "queries": {
+                                                    "filter": "onPremisesSamAccountName eq '@{variables('sAMAccountName')}'"
+                                                },
+                                                "authentication": {
+                                                    "type": "ManagedServiceIdentity"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        },
+                                        "Compute_Unique_SAN": {
+                                            "runAfter": {
+                                                "HTTP_Check_SAN": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "UniqueSAN",
+                                                "value": "@equals(length(body('HTTP_Check_SAN')['value']),0)"
+                                            }
+                                        },
+                                        "Increment_variable": {
+                                            "runAfter": {
+                                                "Compute_Unique_SAN": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "IncrementVariable",
+                                            "inputs": {
+                                                "name": "SANCounter",
+                                                "value": 1
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_Location": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "expression": "@equals(variables('UniqueSAN'),true)",
+                                    "limit": {
+                                        "count": 60,
+                                        "timeout": "PT1H"
+                                    },
+                                    "type": "Until"
+                                },
+                                "Increment_IterationCount": {
+                                    "runAfter": {
+                                        "Until2": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "IncrementVariable",
+                                    "inputs": {
+                                        "name": "IterationCount",
+                                        "value": 1
+                                    }
+                                },
+                                "Decrement_NumberOfRecords": {
+                                    "runAfter": {
+                                        "Increment_IterationCount": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "DecrementVariable",
+                                    "inputs": {
+                                        "name": "NumberOfRecordsToProcess",
+                                        "value": 1
+                                    }
+                                },
+                                "Condition": {
+                                    "actions": {
+                                        "Append_last_SCIMUser_record_in_the_chunk": {
+                                            "type": "AppendToStringVariable",
+                                            "inputs": {
+                                                "name": "SCIMBulkPayload",
+                                                "value": "@body('Parse_Users')"
+                                            }
+                                        },
+                                        "Finalize_SCIMBulkPayload": {
+                                            "runAfter": {
+                                                "Append_last_SCIMUser_record_in_the_chunk": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "AppendToStringVariable",
+                                            "inputs": {
+                                                "name": "SCIMBulkPayload",
+                                                "value": "  ],\n  \"failOnErrors\": null\n}"
+                                            }
+                                        },
+                                        "View_SCIMBulkPayload": {
+                                            "runAfter": {
+                                                "Finalize_SCIMBulkPayload": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Compose",
+                                            "inputs": "@variables('SCIMBulkPayload')"
+                                        },
+                                        "Send_SCIMBulkPayload_to_API_endpoint": {
+                                            "runAfter": {
+                                                "View_SCIMBulkPayload": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "@parameters('bulk_endpoint')",
+                                                "method": "POST",
+                                                "headers": {
+                                                    "Content-Type": "application/scim+json"
+                                                },
+                                                "body": "@variables('SCIMBulkPayload')",
+                                                "authentication": {
+                                                    "type": "ManagedServiceIdentity",
+                                                    "audience": "@{parameters('graph_uri')}"
+                                                }
+                                            },
+                                            "operationOptions": "DisableAsyncPattern"
+                                        },
+                                        "Reset_Iteration_Count": {
+                                            "runAfter": {
+                                                "Send_SCIMBulkPayload_to_API_endpoint": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "IterationCount",
+                                                "value": 0
+                                            }
+                                        },
+                                        "Prepare_next_chunk_of_SCIMBulkPayload": {
+                                            "runAfter": {
+                                                "Reset_Iteration_Count": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "SCIMBulkPayload",
+                                                "value": "{\n  \"schemas\": [\n    \"urn:ietf:params:scim:api:messages:2.0:BulkRequest\"\n  ],\n  \"Operations\": ["
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Construct_SCIMUser": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "else": {
+                                        "actions": {
+                                            "Append_SCIMUser_record": {
+                                                "type": "AppendToStringVariable",
+                                                "inputs": {
+                                                    "name": "SCIMBulkPayload",
+                                                    "value": "@concat(outputs('Construct_SCIMUser'),',')"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "expression": {
+                                        "or": [
+                                            {
+                                                "equals": [
+                                                    "@variables('NumberOfRecordsToProcess')",
+                                                    0
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@variables('IterationCount')",
+                                                    50
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                },
+                                "Until2": {
+                                    "actions": {
+                                        "Compute_employeeId": {
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "sAMAccountName",
+                                                "value": "@if(equals(variables('EIDCounter'),0),substring(items('For_each')?['name'],0,8),concat(substring(items('For_each')?['name'],0,7),variables('EIDCounter')))"
+                                            }
+                                        },
+                                        "HTTP_Check_EID": {
+                                            "runAfter": {
+                                                "Compute_employeeId": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "@{parameters('graph_uri')}/v1.0/users",
+                                                "method": "GET",
+                                                "queries": {
+                                                    "filter": "employeeId eq '@{variables('employeeId')}'"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        },
+                                        "Compute_Unique_EID": {
+                                            "runAfter": {
+                                                "HTTP_Check_EID": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "EIDCounter",
+                                                "value": "@equals(length(body('HTTP_Check_SAN')['value']),0)"
+                                            }
+                                        },
+                                        "Increment_EID_Counter": {
+                                            "runAfter": {
+                                                "Compute_Unique_EID": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "IncrementVariable",
+                                            "inputs": {
+                                                "name": "EIDCounter",
+                                                "value": 1
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Until": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "expression": "@equals(variables('UniqueEID'),true)",
+                                    "limit": {
+                                        "count": 60,
+                                        "timeout": "PT1H"
+                                    },
+                                    "type": "Until"
+                                },
+                                "Get_Location_Details": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "@{parameters('snow_uri')}/api/now/table/cmn/location",
+                                        "method": "GET",
+                                        "queries": {
+                                            "sysparm_query": "name=@{items('For_each')?['u_azure_location']}",
+                                            "sysparm_fields": "zip,country,fullname,city,name,street,state"
+                                        }
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                },
+                                "Parse_Location": {
+                                    "runAfter": {
+                                        "Get_Location_Details": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('Get_Location_Details')",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "result": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "zip": {
+                                                                "type": "string"
+                                                            },
+                                                            "city": {
+                                                                "type": "string"
+                                                            },
+                                                            "state": {
+                                                                "type": "string"
+                                                            },
+                                                            "street": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "full_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "country": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": []
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "Construct_SCIMUser": {
+                                    "runAfter": {
+                                        "Decrement_NumberOfRecords": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Compose",
+                                    "inputs": {
+                                        "bulkId": "@{guid()}",
+                                        "data": {
+                                            "addresses": [
+                                                {
+                                                    "locality": "@{items('For_each')?['u_azure_location']}",
+                                                    "postalCode": "@{items('For_each')?['zip']}",
+                                                    "city": "@{items('For_each')?['city']}",
+                                                    "country": "@{items('For_each')?['country']}",
+                                                    "region": "@{items('For_each')?['state']}",
+                                                    "streetAddress": "@{items('For_each')?['street']}",
+                                                    "type": "work"
+                                                }
+                                            ],
+                                            "displayName": "@{items('For_each')?['name']}",
+                                            "externalId": "@{items('For_each')?['u_initiales']}",
+                                            "id": "@{variables('sAMAccountName')}",
+                                            "name": {
+                                                "familyName": "@{items('For_each')?['last_name']}",
+                                                "givenName": "@{items('For_each')?['first_name']}"
+                                            },
+                                            "phoneNumbers": [
+                                                {
+                                                    "type": "personal",
+                                                    "value": "@{items('For_each')?['mobile_phone']}"
+                                                },
+                                                {
+                                                    "type": "work",
+                                                    "value": "@{items('For_each')?['phone']}"
+                                                }
+                                            ],
+                                            "title": "@{items('For_each')?['title']}",
+                                            "schemas": [
+                                                "urn:ietf:params:scim:schemas:core:2.0:User",
+                                                "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
+                                                "urn:ietf:params:scim:schemas:extension:pgsa:1.0:User"
+                                            ],
+                                            "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+                                                "department": "@{items('For_each')?['u_azure_department']}",
+                                                "employeeNumber": "@{variables('employeeId')}",
+                                                "manager": {
+                                                    "value": "@{items('For_each')?['manager']}"
+                                                }
+                                            },
+                                            "urn:ietf:params:scim:schemas:extension:pgsa:1.0:User": {
+                                                "gender": "@{items('For_each')?['gender']}",
+                                                "employeeStartDate": "@{items('For_each')?['u_start_date']}",
+                                                "employeeLeaveDate": "@{items('For_each')?['u_end_date']}",
+                                                "apsys": "@{items('For_each')?['u_apsys']}",
+                                                "diploma": "@{items('For_each')?['u_diploma']}",
+                                                "grade": "@{items('For_each')?['u_grade']}",
+                                                "occupationRate": "@{items('For_each')?['u_occupation_rate']}"
+                                            }
+                                        },
+                                        "method": "POST",
+                                        "path": "/Users"
+                                    }
+                                },
+                                "Set_UPN": {
+                                    "runAfter": {
+                                        "Until2": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "userPrincipalName",
+                                        "value": "@concat(variables('sAMAccountName'),'@domain.com')"
+                                    }
+                                },
+                                "Update_Snow_CorrelationID_with_UPN": {
+                                    "runAfter": {
+                                        "Set_UPN": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "@{parameters('snow_uri')}/api/now/table/sys_user/@{items('For_each')?['sys_id']}",
+                                        "method": "PATCH",
+                                        "body": {
+                                            "u_correlation_id": "@{variables('userPrincipalName')}"
+                                        }
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Initialize_variables": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Foreach",
+                            "runtimeConfiguration": {
+                                "concurrency": {
+                                    "repetitions": 1
+                                }
+                            }
+                        },
+                        "Get_Snow_ClientSecret": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['keyvault']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/secrets/@{encodeURIComponent('secret1')}/value"
+                            },
+                            "runtimeConfiguration": {
+                                "secureData": {
+                                    "properties": [
+                                        "inputs",
+                                        "outputs"
+                                    ]
+                                }
+                            }
+                        },
+                        "Get_Snow_Password": {
+                            "runAfter": {
+                                "Get_Snow_ClientSecret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['keyvault']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/secrets/@{encodeURIComponent('secret2')}/value"
+                            },
+                            "runtimeConfiguration": {
+                                "secureData": {
+                                    "properties": [
+                                        "inputs",
+                                        "outputs"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "keyvault": {
+                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/switzerlandwest/managedApis/keyvault",
+                                "connectionId": "[parameters('connections_keyvault_5_externalid')]",
+                                "connectionName": "keyvault-5",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,236 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_term_user_move_name": {
+            "defaultValue": "term-user-move",
+            "type": "String"
+        },
+        "automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid": {
+            "defaultValue": "/subscriptions/@{encodeURIComponent('41271998-9818-49dd-8b6a-2ca5ec3a7c50')}/resourceGroups/@{encodeURIComponent('rg-entra-provisioning-poc_gbo_eu')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('onprem-powershell-execution')}",
+            "type": "String"
+        },
+        "connections_azureautomation_externalid": {
+            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/azureautomation",
+            "type": "String"
+        },
+        "connections_acsemail_2_externalid": {
+            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/acsemail-2",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_term_user_move_name')]",
+            "location": "westeurope",
+            "tags": {
+                "Purpose": "Azure AD Lifecycle Workflows"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "Disabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "userPrincipalName": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Create_job": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs')]",
+                                "queries": {
+                                    "x-ms-api-version": "2015-10-31",
+                                    "runbookName": "MoveUserInDisabledOU",
+                                    "wait": false
+                                }
+                            }
+                        },
+                        "Get_status_of_job": {
+                            "runAfter": {
+                                "Create_job": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs/@{encodeURIComponent(body(''Create_job'')?[''properties'']?[''jobId''])}')]",
+                                "queries": {
+                                    "x-ms-api-version": "2015-10-31"
+                                }
+                            }
+                        },
+                        "Operation_success": {
+                            "actions": {
+                                "Success_email": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['acsemail']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "body": {
+                                            "senderAddress": "governanceprocess@kyos.ch",
+                                            "recipients": {
+                                                "to": [
+                                                    {
+                                                        "address": "it@customer.ch"
+                                                    }
+                                                ]
+                                            },
+                                            "content": {
+                                                "subject": "[SUCCESS] Changement d'OU d'un utilisateur",
+                                                "html": "<p class=\"editor-paragraph\">Bonjour,</p><br><p class=\"editor-paragraph\">L'utilisateur @{triggerBody()?['userPrincipalName']} a bien été déplacé dans l'OU disabled.</p><br><p class=\"editor-paragraph\">Merci,</p><p class=\"editor-paragraph\">Entra Governance</p>"
+                                            },
+                                            "importance": "Normal"
+                                        },
+                                        "path": "/emails:sendGAVersion",
+                                        "queries": {
+                                            "api-version": "2023-03-31"
+                                        }
+                                    }
+                                },
+                                "Response_success": {
+                                    "runAfter": {
+                                        "Success_email": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Response",
+                                    "kind": "Http",
+                                    "inputs": {
+                                        "statusCode": 200
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Get_status_of_job": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "else": {
+                                "actions": {
+                                    "Failed_email": {
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['acsemail']['connectionId']"
+                                                }
+                                            },
+                                            "method": "post",
+                                            "body": {
+                                                "senderAddress": "governanceprocess@kyos.ch",
+                                                "recipients": {
+                                                    "to": [
+                                                        {
+                                                            "address": "it@customer.ch"
+                                                        }
+                                                    ]
+                                                },
+                                                "content": {
+                                                    "subject": "[FAILED] Changement d'OU d'un utilisateur",
+                                                    "html": "<p class=\"editor-paragraph\">Bonjour,<br><br>L'utilisateur @{triggerBody()?['userPrincipalName']} n'a été déplacé dans l'OU disabled, un problème est survenu lors de l'opération. le code d'erreur est @{body('Get_status_of_job')?['properties']?['status']}</p><p class=\"editor-paragraph\">Merci de procéder au contrôle manuel.<br><br>Merci,<br>Entra Governance</p>"
+                                                },
+                                                "importance": "Normal"
+                                            },
+                                            "path": "/emails:sendGAVersion",
+                                            "queries": {
+                                                "api-version": "2023-03-31"
+                                            }
+                                        }
+                                    },
+                                    "Response_Fail": {
+                                        "runAfter": {
+                                            "Failed_email": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Response",
+                                        "kind": "Http",
+                                        "inputs": {
+                                            "statusCode": 500
+                                        }
+                                    }
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@body('Get_status_of_job')?['properties']?['status']",
+                                            "Success"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureautomation": {
+                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/westeurope/managedApis/azureautomation",
+                                "connectionId": "[parameters('connections_azureautomation_externalid')]",
+                                "connectionName": "azureautomation",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity"
+                                    }
+                                }
+                            },
+                            "acsemail": {
+                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/westeurope/managedApis/acsemail",
+                                "connectionId": "[parameters('connections_acsemail_2_externalid')]",
+                                "connectionName": "acsemail-2"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

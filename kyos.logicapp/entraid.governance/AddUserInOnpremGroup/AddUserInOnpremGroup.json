@@ -1,0 +1,218 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_Add_User_To_Group_name": {
+            "defaultValue": "Add-User-To-Group",
+            "type": "String"
+        },
+        "connections_azurefile_1_externalid": {
+            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/azurefile-1",
+            "type": "String"
+        },
+        "connections_azureautomation_1_externalid": {
+            "defaultValue": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/resourceGroups/rg-entra-provisioning-poc_gbo_eu/providers/Microsoft.Web/connections/azureautomation-1",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_Add_User_To_Group_name')]",
+            "location": "switzerlandwest",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "userPrincipalName": {
+                                            "type": "string"
+                                        },
+                                        "department": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Get_file_content": {
+                            "runAfter": {},
+                            "metadata": {
+                                "JTJmZ3JvdXBzJTJmR3JvdXBzLmpzb24=": "/groups/Groups.json"
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azurefile']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent('JTJmZ3JvdXBzJTJmR3JvdXBzLmpzb24='))}/content",
+                                "queries": {
+                                    "inferContentType": true
+                                }
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "Get_file_content": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('Get_file_content')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "baseGroups": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "departmentGroups": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "Compose_BaseGroups": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@body('Parse_JSON')?['baseGroups']"
+                        },
+                        "Compose_DepartmentGroups": {
+                            "runAfter": {
+                                "Compose_BaseGroups": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@body('Parse_JSON')?['departmentGroups']?[triggerBody()?['department']]\n"
+                        },
+                        "Compose_AllGroups": {
+                            "runAfter": {
+                                "Compose_DepartmentGroups": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@union(outputs('Compose_BaseGroups'), outputs('Compose_DepartmentGroups'))\n"
+                        },
+                        "Create_job": {
+                            "runAfter": {
+                                "Compose_AllGroups": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "body": {
+                                    "properties": {
+                                        "parameters": {
+                                            "UserPrincipalName": "@triggerBody()?['userPrincipalName']",
+                                            "GroupDNs": "@{outputs('Compose_AllGroups')}"
+                                        }
+                                    }
+                                },
+                                "path": "/subscriptions/@{encodeURIComponent('41271998-9818-49dd-8b6a-2ca5ec3a7c50')}/resourceGroups/@{encodeURIComponent('rg-entra-provisioning-poc_gbo_eu')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('onprem-powershell-execution')}/jobs",
+                                "queries": {
+                                    "x-ms-api-version": "2015-10-31",
+                                    "runbookName": "AddUserToGroup",
+                                    "wait": false
+                                }
+                            }
+                        },
+                        "Get_job_output": {
+                            "runAfter": {
+                                "Create_job": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/subscriptions/@{encodeURIComponent('41271998-9818-49dd-8b6a-2ca5ec3a7c50')}/resourceGroups/@{encodeURIComponent('rg-entra-provisioning-poc_gbo_eu')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('onprem-powershell-execution')}/jobs/@{encodeURIComponent(body('Create_job')?['properties']?['jobId'])}/output",
+                                "queries": {
+                                    "x-ms-api-version": "2015-10-31"
+                                }
+                            }
+                        },
+                        "Response": {
+                            "runAfter": {
+                                "Get_job_output": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "statusCode": 200,
+                                "body": "@body('Get_job_output')"
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azurefile": {
+                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/switzerlandwest/managedApis/azurefile",
+                                "connectionId": "[parameters('connections_azurefile_1_externalid')]",
+                                "connectionName": "azurefile-1"
+                            },
+                            "azureautomation": {
+                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/switzerlandwest/managedApis/azureautomation",
+                                "connectionId": "[parameters('connections_azureautomation_1_externalid')]",
+                                "connectionName": "azureautomation-1"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

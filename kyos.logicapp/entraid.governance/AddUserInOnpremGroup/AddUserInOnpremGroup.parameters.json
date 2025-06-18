@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_Add_User_To_Group_name": {
+            "value": null
+        },
+        "connections_azurefile_1_externalid": {
+            "value": null
+        },
+        "connections_azureautomation_1_externalid": {
+            "value": null
+        }
+    }
+}

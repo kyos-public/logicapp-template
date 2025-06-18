@@ -1,0 +1,351 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_final_termination_name": {
+            "defaultValue": "final-termination",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_final_termination_name')]",
+            "location": "switzerlandwest",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "method": "POST",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "upn": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "operationOptions": "EnableSchemaValidation"
+                        }
+                    },
+                    "actions": {
+                        "Devices": {
+                            "actions": {
+                                "HTTP_Get_User_Devices": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https.//graph.microsoft.com/v1.0/users/@{triggerBody()?['upn']}/managedDevices",
+                                        "method": "GET",
+                                        "queries": {
+                                            "select": "id,deviceName"
+                                        }
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                },
+                                "Parse_User_Devices": {
+                                    "runAfter": {
+                                        "HTTP_Get_User_Devices": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('HTTP_Get_User_Devices')",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "value": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "deviceName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": []
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "For_each_device": {
+                                    "foreach": "@body('Parse_User_Devices')?['value']",
+                                    "actions": {
+                                        "HTTP_Retire_Device": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/@{items('For_each_device')['id']}/retire",
+                                                "method": "POST"
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        },
+                                        "HTTP_Wipe_Device": {
+                                            "runAfter": {
+                                                "HTTP_Retire_Device": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/@{items('For_each_device')['id']}/wipe",
+                                                "method": "POST"
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_User_Devices": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach"
+                                }
+                            },
+                            "runAfter": {},
+                            "type": "Scope"
+                        },
+                        "oAuth2_Grants": {
+                            "actions": {
+                                "HTTP_Get_User_oAuth2_Grants": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['upn']}/oauth2PermissionGrants",
+                                        "method": "GET"
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                },
+                                "Parse_oAuth2_Grants": {
+                                    "runAfter": {
+                                        "HTTP_Get_User_oAuth2_Grants": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('HTTP_Get_User_oAuth2_Grants')",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "@@odata.context": {
+                                                    "type": "string"
+                                                },
+                                                "@@microsoft.graph.tips": {
+                                                    "type": "string"
+                                                },
+                                                "value": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "clientId": {
+                                                                "type": "string"
+                                                            },
+                                                            "consentType": {
+                                                                "type": "string"
+                                                            },
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "principalId": {
+                                                                "type": "string"
+                                                            },
+                                                            "resourceId": {
+                                                                "type": "string"
+                                                            },
+                                                            "scope": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "clientId",
+                                                            "consentType",
+                                                            "id",
+                                                            "principalId",
+                                                            "resourceId",
+                                                            "scope"
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "For_each_oAuth2_Grant": {
+                                    "foreach": "@body('Parse_oAuth2_Grants')?['value']",
+                                    "actions": {
+                                        "HTTP_Delete_oAuth2_Grant_1": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['upn']}/oauth2PermissionGrants@{items('For_each_oAuth2_Grant')['id']}",
+                                                "method": "DELETE"
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_oAuth2_Grants": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach"
+                                },
+                                "HTTP_Revoke_Sessions": {
+                                    "runAfter": {
+                                        "For_each_oAuth2_Grant": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['upn']}/revokeSignInSessions",
+                                        "method": "POST"
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {},
+                            "type": "Scope"
+                        },
+                        "Authentication_Methods": {
+                            "actions": {
+                                "HTTP_Get_Authentication_Methods": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['upn']}/authentication/methods",
+                                        "method": "GET"
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                },
+                                "Parse_Autentication_Methods": {
+                                    "runAfter": {
+                                        "HTTP_Get_Authentication_Methods": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('HTTP_Get_Authentication_Methods')",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "value": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "@@odata.type": {
+                                                                "type": "string"
+                                                            },
+                                                            "id": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": []
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "Filter_Password_Methods": {
+                                    "runAfter": {
+                                        "Parse_Autentication_Methods": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Query",
+                                    "inputs": {
+                                        "from": "@body('Parse_Autentication_Methods')?['value']",
+                                        "where": "@contains(body('Parse_Autentication_Methods')?['value']['@@odata-type'],'passwordAuthenticationMethod')"
+                                    }
+                                },
+                                "For_each_Authentication_Method": {
+                                    "foreach": "@body('Filter_Password_Methods')",
+                                    "actions": {
+                                        "HTTP_Delete_Password_Method": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/v1.0/users/@{triggerBody()?['upn']}/authentication/methods/@{items('For_each_Authentication_Method')['id']}",
+                                                "method": "DELETE"
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Filter_Password_Methods": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach"
+                                }
+                            },
+                            "runAfter": {},
+                            "type": "Scope"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {}
+                    }
+                }
+            }
+        }
+    ]
+}
