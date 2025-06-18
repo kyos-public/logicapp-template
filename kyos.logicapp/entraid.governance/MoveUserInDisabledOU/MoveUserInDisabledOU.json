@@ -136,7 +136,7 @@
                                     }
                                 },
                                 "method": "put",
-                                "path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs')]",
+                                "path": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('automationResourceGroupName'), '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/jobs')]",
                                 "queries": {
                                     "x-ms-api-version": "2015-10-31",
                                     "runbookName": "MoveUserInDisabledOU",

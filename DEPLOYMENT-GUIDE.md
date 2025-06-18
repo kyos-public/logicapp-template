@@ -55,6 +55,7 @@ All resources (Logic Apps and API connections) now include these standardized ta
 - ✅ Dependencies added to Logic App resource
 - ✅ Parameter file updated
 - ✅ Managed Identity authentication preserved
+- ✅ **Fixed automation account path reference in Logic App definition**
 
 ### 4. SendPasswordSMS
 
@@ -225,5 +226,21 @@ az deployment group create \
 - When using `"parameterValueType": "Alternative"`, the `"parameterValues"` property must be omitted
 - Only `"alternativeParameterValues"` should contain the Key Vault name
 - This configuration allows the Logic App to authenticate to Key Vault using its system-assigned managed identity
+
+### Template Parameter Reference Error (MoveUserInDisabledOU)
+
+**Error**: `The template parameter 'automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid' is not found.`
+
+**Solution**: The MoveUserInDisabledOU template had a leftover parameter reference from the original export. Fixed the automation account path reference:
+
+```json
+// ❌ BEFORE - Invalid parameter reference
+"path": "[concat(parameters('automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid'), '/jobs')]"
+
+// ✅ AFTER - Proper ARM template function
+"path": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('automationResourceGroupName'), '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/jobs')]"
+```
+
+This change allows the Logic App to properly reference the automation account using the parameterized values.
 
 All templates are now ready for cross-tenant deployment! 🎉
