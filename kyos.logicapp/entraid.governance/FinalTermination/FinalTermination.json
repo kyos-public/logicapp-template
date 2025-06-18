@@ -4,7 +4,14 @@
     "parameters": {
         "workflows_final_termination_name": {
             "defaultValue": "final-termination",
-            "type": "String"
+            "type": "string"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources"
+            }
         }
     },
     "variables": {},
@@ -13,7 +20,7 @@
             "type": "Microsoft.Logic/workflows",
             "apiVersion": "2017-07-01",
             "name": "[parameters('workflows_final_termination_name')]",
-            "location": "switzerlandnorth",
+            "location": "[parameters('location')]",
             "identity": {
                 "type": "SystemAssigned"
             },

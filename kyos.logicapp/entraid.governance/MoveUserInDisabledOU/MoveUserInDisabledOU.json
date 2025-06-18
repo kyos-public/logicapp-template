@@ -4,28 +4,67 @@
     "parameters": {
         "workflows_term_user_move_name": {
             "defaultValue": "term-user-move",
-            "type": "String"
+            "type": "string"
         },
-        "automationAccounts___encodeURIComponent__onprem_powershell_execution____externalid": {
-            "defaultValue": "",
-            "type": "String"
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources"
+            }
         },
-        "connections_azureautomation_externalid": {
-            "defaultValue": "",
-            "type": "String"
+        "automationAccountName": {
+            "defaultValue": "onprem-powershell-execution",
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure Automation Account"
+            }
         },
-        "connections_acsemail_2_externalid": {
-            "defaultValue": "",
-            "type": "String"
+        "automationResourceGroupName": {
+            "defaultValue": "[resourceGroup().name]",
+            "type": "string",
+            "metadata": {
+                "description": "Resource group containing the Azure Automation Account"
+            }
         }
     },
     "variables": {},
     "resources": [
         {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "azureautomation-connection",
+            "location": "[parameters('location')]",
+            "properties": {
+                "displayName": "Azure Automation Connection",
+                "api": {
+                    "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'azureautomation')]"
+                },
+                "parameterValues": {}
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "acsemail-connection",
+            "location": "[parameters('location')]",
+            "properties": {
+                "displayName": "Azure Communication Services Email Connection",
+                "api": {
+                    "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'acsemail')]"
+                },
+                "parameterValues": {}
+            }
+        },
+        {
             "type": "Microsoft.Logic/workflows",
             "apiVersion": "2017-07-01",
             "name": "[parameters('workflows_term_user_move_name')]",
-            "location": "switzerlandnorth",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', 'azureautomation-connection')]",
+                "[resourceId('Microsoft.Web/connections', 'acsemail-connection')]"
+            ],
             "tags": {
                 "WorkloadName": "IAM",
                 "ApplicationName": "Tools",
@@ -220,9 +259,9 @@
                     "$connections": {
                         "value": {
                             "azureautomation": {
-                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/westeurope/managedApis/azureautomation",
-                                "connectionId": "[parameters('connections_azureautomation_externalid')]",
-                                "connectionName": "azureautomation",
+                                "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'azureautomation')]",
+                                "connectionId": "[resourceId('Microsoft.Web/connections', 'azureautomation-connection')]",
+                                "connectionName": "azureautomation-connection",
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity"
@@ -230,9 +269,9 @@
                                 }
                             },
                             "acsemail": {
-                                "id": "/subscriptions/41271998-9818-49dd-8b6a-2ca5ec3a7c50/providers/Microsoft.Web/locations/westeurope/managedApis/acsemail",
-                                "connectionId": "[parameters('connections_acsemail_2_externalid')]",
-                                "connectionName": "acsemail-2"
+                                "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'acsemail')]",
+                                "connectionId": "[resourceId('Microsoft.Web/connections', 'acsemail-connection')]",
+                                "connectionName": "acsemail-connection"
                             }
                         }
                     }
