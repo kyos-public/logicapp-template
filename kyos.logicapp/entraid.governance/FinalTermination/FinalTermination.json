@@ -13,9 +13,19 @@
             "type": "Microsoft.Logic/workflows",
             "apiVersion": "2017-07-01",
             "name": "[parameters('workflows_final_termination_name')]",
-            "location": "switzerlandwest",
+            "location": "switzerlandnorth",
             "identity": {
                 "type": "SystemAssigned"
+            },
+            "tags": {
+                "WorkloadName": "IAM",
+                "ApplicationName": "Tools",
+                "DataClassification": "Low",
+                "BusinessCriticality": "Low",
+                "Owner": "Kyos",
+                "Environment": "Prod",
+                "CreatedBy": "Terraform",
+                "OperationTeam": "Infra"
             },
             "properties": {
                 "state": "Enabled",

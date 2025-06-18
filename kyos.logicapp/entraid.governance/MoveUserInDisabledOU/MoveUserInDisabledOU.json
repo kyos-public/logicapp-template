@@ -25,9 +25,16 @@
             "type": "Microsoft.Logic/workflows",
             "apiVersion": "2017-07-01",
             "name": "[parameters('workflows_term_user_move_name')]",
-            "location": "westeurope",
+            "location": "switzerlandnorth",
             "tags": {
-                "Purpose": "Azure AD Lifecycle Workflows"
+                "WorkloadName": "IAM",
+                "ApplicationName": "Tools",
+                "DataClassification": "Low",
+                "BusinessCriticality": "Low",
+                "Owner": "Kyos",
+                "Environment": "Prod",
+                "CreatedBy": "Terraform",
+                "OperationTeam": "Infra"
             },
             "identity": {
                 "type": "SystemAssigned"
