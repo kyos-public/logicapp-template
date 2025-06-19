@@ -1,0 +1,16 @@
+ {
+   "baseGroups": [
+     "CN=GRP_All_InternalOU=Groups,DC=domain,DC=local"
+   ],
+   "departmentGroups": {
+    "IT": [
+        "CN=IT,OU=Groups,DC=domain,DC=local"
+    ],
+    "Finance": [
+        "CN=Finance,OU=Groups,DC=domain,DC=local"
+    ],
+    "Direction": [
+        "CN=Direction,OU=Groups,DC=domain,DC=local"
+    ]
+    } 
+}
