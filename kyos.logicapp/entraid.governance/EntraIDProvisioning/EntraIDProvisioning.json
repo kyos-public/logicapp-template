@@ -2,8 +2,8 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "workflows_create_ad_from_snow_name": {
-            "defaultValue": "create-ad-from-snow",
+        "workflows_lap_create_ad_from_snow_prod_chn_name": {
+            "value": "create-ad-from-snow",
             "type": "string"
         },
         "location": {
@@ -13,8 +13,8 @@
                 "description": "Location for all resources"
             }
         },
-        "keyVaultName": {
-            "defaultValue": "keyvault-name",
+        "connections_keyvault_connection_externalid": {
+            "value": "your-keyvault-name",
             "type": "string",
             "metadata": {
                 "description": "Name of the Azure Key Vault"
@@ -52,7 +52,7 @@
         {
             "type": "Microsoft.Logic/workflows",
             "apiVersion": "2017-07-01",
-            "name": "[parameters('workflows_create_ad_from_snow_name')]",
+            "name": "[parameters('workflows_lap_create_ad_from_snow_prod_chn_name')]",
             "location": "[parameters('location')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Web/connections', 'keyvault-connection')]"
@@ -76,6 +76,10 @@
                     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
                     "contentVersion": "1.0.0.0",
                     "parameters": {
+                        "target_domain": {
+                            "defaultValue": "domain.com",
+                            "type": "String"
+                        },
                         "snow_uri": {
                             "defaultValue": "https://snow.com",
                             "type": "String"
@@ -104,110 +108,26 @@
                     "triggers": {
                         "Recurrence": {
                             "recurrence": {
-                                "frequency": "Day",
+                                "frequency": "Minute",
                                 "interval": 5
                             },
                             "evaluatedRecurrence": {
-                                "frequency": "Day",
+                                "frequency": "Minute",
                                 "interval": 5
                             },
                             "type": "Recurrence"
                         }
                     },
                     "actions": {
-                        "Get_Token": {
-                            "runAfter": {
-                                "Get_Snow_Password": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Http",
-                            "inputs": {
-                                "uri": "@{parameters('snow_uri')}/oauth_token.do",
-                                "method": "GET",
-                                "headers": {
-                                    "Content-Type": "application/x-www-form-urlencoded",
-                                    "Accept": "application/json"
-                                },
-                                "body": "grant_type=password&client_secret=@{body('Get_Snow_ClientSecret')}&client_id=@{parameters('snow_client_id')}&username=@{parameters('snow_username')}&password=@{body('Get_Snow_Password')}"
-                            },
-                            "runtimeConfiguration": {
-                                "contentTransfer": {
-                                    "transferMode": "Chunked"
-                                }
-                            }
-                        },
-                        "Parse_Token": {
-                            "runAfter": {
-                                "Get_Token": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "ParseJson",
-                            "inputs": {
-                                "content": "@body('Get_Token')",
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "access_token": {
-                                            "type": "string"
-                                        },
-                                        "refresh_token": {
-                                            "type": "string"
-                                        },
-                                        "scope": {
-                                            "type": "string"
-                                        },
-                                        "token_type": {
-                                            "type": "string"
-                                        },
-                                        "expires_in": {
-                                            "type": "integer"
-                                        }
-                                    }
-                                }
-                            },
-                            "runtimeConfiguration": {
-                                "secureData": {
-                                    "properties": [
-                                        "inputs"
-                                    ]
-                                }
-                            }
-                        },
-                        "Get_Users": {
-                            "runAfter": {
-                                "Parse_Token": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Http",
-                            "inputs": {
-                                "uri": "@{parameters('snow_uri')}/api/now/table/sys_user",
-                                "method": "GET",
-                                "headers": {
-                                    "Autorization": "Bearer @{body('Parse_Token')?['access_token']}"
-                                },
-                                "queries": {
-                                    "sysparm_query": "u_correlation_id=ENTRAID",
-                                    "sysparm_fields": "gender,first_name,last_name,name,u_initiales,u_grade,title,manager,u_diploma,u_azure_department,u_occupation_rate,u_start_date,u_end_date,mobile_phone,phone,u_apsys,u_azure_location,sys_id"
-                                }
-                            },
-                            "runtimeConfiguration": {
-                                "contentTransfer": {
-                                    "transferMode": "Chunked"
-                                }
-                            }
-                        },
                         "Parse_Users": {
                             "runAfter": {
-                                "Get_Users": [
+                                "HTTP_Get_Users": [
                                     "Succeeded"
                                 ]
                             },
                             "type": "ParseJson",
                             "inputs": {
-                                "content": "@body('Get_Users')",
+                                "content": "@body('HTTP_Get_Users')",
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -219,6 +139,66 @@
                                                     "gender": {
                                                         "type": "string"
                                                     },
+                                                    "manager": {
+                                                        "type": [
+                                                            "object",
+                                                            "string"
+                                                        ],
+                                                        "properties": {
+                                                            "link": {
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    },
+                                                    "location": {
+                                                        "type": [
+                                                            "object",
+                                                            "string"
+                                                        ],
+                                                        "properties": {
+                                                            "link": {
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    },
+                                                    "department": {
+                                                        "type": [
+                                                            "object",
+                                                            "string"
+                                                        ],
+                                                        "properties": {
+                                                            "link": {
+                                                                "type": "string"
+                                                            },
+                                                            "value": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    },
+                                                    "u_initials": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_azure_department": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_azure_location": {
+                                                        "type": "string"
+                                                    },
+                                                    "last_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "user_name": {
+                                                        "type": "string"
+                                                    },
                                                     "sys_id": {
                                                         "type": "string"
                                                     },
@@ -228,55 +208,37 @@
                                                     "mobile_phone": {
                                                         "type": "string"
                                                     },
+                                                    "u_personal_mobile_phone": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_personal_email": {
+                                                        "type": "string"
+                                                    },
+                                                    "u_role_keyuser_apsys": {
+                                                        "type": "string"
+                                                    },
                                                     "name": {
-                                                        "type": "string"
-                                                    },
-                                                    "first_name": {
-                                                        "type": "string"
-                                                    },
-                                                    "last_name": {
-                                                        "type": "string"
-                                                    },
-                                                    "u_initiales": {
                                                         "type": "string"
                                                     },
                                                     "u_correlation_id": {
                                                         "type": "string"
                                                     },
+                                                    "u_workload": {
+                                                        "type": "string"
+                                                    },
                                                     "u_grade": {
                                                         "type": "string"
                                                     },
-                                                    "u_diploma": {
+                                                    "u_degree": {
                                                         "type": "string"
                                                     },
-                                                    "u_azure_department": {
+                                                    "first_name": {
                                                         "type": "string"
                                                     },
-                                                    "u_azure_location": {
+                                                    "u_employee_start_date": {
                                                         "type": "string"
                                                     },
-                                                    "u_txoccup": {
-                                                        "type": "string"
-                                                    },
-                                                    "u_occupation_rate": {
-                                                        "type": "string"
-                                                    },
-                                                    "u_end_date": {
-                                                        "type": "string"
-                                                    },
-                                                    "u_start_date": {
-                                                        "type": "string"
-                                                    },
-                                                    "u_apsys": {
-                                                        "type": "string"
-                                                    },
-                                                    "title": {
-                                                        "type": "string"
-                                                    },
-                                                    "email": {
-                                                        "type": "string"
-                                                    },
-                                                    "manager": {
+                                                    "u_employee_end_date": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -419,11 +381,28 @@
                                     {
                                         "name": "userPrincipalName",
                                         "type": "string"
+                                    },
+                                    {
+                                        "name": "managerSAN",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "name": "managerEmplyeeNumber",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "name": "POBoxes",
+                                        "type": "object",
+                                        "value": {
+                                            "<city>": {
+                                                "POBox": "<pobox>"
+                                            }
+                                        }
                                     }
                                 ]
                             }
                         },
-                        "For_each": {
+                        "For_each_Snow_User": {
                             "foreach": "@variables('JSONInputArray')",
                             "actions": {
                                 "Until": {
@@ -432,59 +411,83 @@
                                             "type": "SetVariable",
                                             "inputs": {
                                                 "name": "sAMAccountName",
-                                                "value": "@if(equals(variables('SANCounter'),0),concat(substring(items('For_each')?['first_name'],0,1),substring(items('For_each')?['last_name'],0,20)),concat(substring(items('For_each')?['first_name'],0,1),substring(items('For_each')?['last_name'],0,20),variables('SANCounter')))"
+                                                "value": "@if(equals(variables('SANCounter'),0),concat(substring(items('For_each_Snow_User')?['first_name'],0,1),substring(items('For_each_Snow_User')?['last_name'],0,length(items('For_each_Snow_User')?['last_name']))),concat(substring(items('For_each_Snow_User')?['first_name'],0,1),substring(items('For_each_Snow_User')?['last_name'],0,length(items('For_each_Snow_User')?['last_name'])),variables('SANCounter')))"
                                             }
                                         },
-                                        "HTTP_Check_SAN": {
+                                        "If_Is_New_User": {
+                                            "actions": {
+                                                "Compute_Unique_SAN": {
+                                                    "runAfter": {
+                                                        "HTTP_Check_SAN": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "SetVariable",
+                                                    "inputs": {
+                                                        "name": "UniqueSAN",
+                                                        "value": "@equals(length(body('HTTP_Check_SAN')['value']),0)"
+                                                    }
+                                                },
+                                                "HTTP_Check_SAN": {
+                                                    "type": "Http",
+                                                    "inputs": {
+                                                        "uri": "@{parameters('graph_uri')}/v1.0/users?$filter=userPrincipalName eq '@{concat(concat(variables('sAMAccountName'),'@'),@{parameters('target_domain')}))}'",
+                                                        "method": "GET",
+                                                        "authentication": {
+                                                            "type": "ManagedServiceIdentity",
+                                                            "audience": "@{parameters('graph_uri')}"
+                                                        }
+                                                    },
+                                                    "runtimeConfiguration": {
+                                                        "contentTransfer": {
+                                                            "transferMode": "Chunked"
+                                                        }
+                                                    }
+                                                },
+                                                "Increment_variable": {
+                                                    "runAfter": {
+                                                        "Compute_Unique_SAN": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "IncrementVariable",
+                                                    "inputs": {
+                                                        "name": "SANCounter",
+                                                        "value": 1
+                                                    }
+                                                }
+                                            },
                                             "runAfter": {
                                                 "Compute_sAMAccountName": [
                                                     "Succeeded"
                                                 ]
                                             },
-                                            "type": "Http",
-                                            "inputs": {
-                                                "uri": "@{parameters('graph_uri')}/v1.0/users",
-                                                "method": "GET",
-                                                "queries": {
-                                                    "filter": "onPremisesSamAccountName eq '@{variables('sAMAccountName')}'"
-                                                },
-                                                "authentication": {
-                                                    "type": "ManagedServiceIdentity"
+                                            "else": {
+                                                "actions": {
+                                                    "Set_UniqueSAN_True": {
+                                                        "type": "SetVariable",
+                                                        "inputs": {
+                                                            "name": "UniqueSAN",
+                                                            "value": true
+                                                        }
+                                                    }
                                                 }
                                             },
-                                            "runtimeConfiguration": {
-                                                "contentTransfer": {
-                                                    "transferMode": "Chunked"
-                                                }
-                                            }
-                                        },
-                                        "Compute_Unique_SAN": {
-                                            "runAfter": {
-                                                "HTTP_Check_SAN": [
-                                                    "Succeeded"
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "equals": [
+                                                            "@items('For_each_Snow_User')?['u_correlation_id']",
+                                                            "ENTRAID"
+                                                        ]
+                                                    }
                                                 ]
                                             },
-                                            "type": "SetVariable",
-                                            "inputs": {
-                                                "name": "UniqueSAN",
-                                                "value": "@equals(length(body('HTTP_Check_SAN')['value']),0)"
-                                            }
-                                        },
-                                        "Increment_variable": {
-                                            "runAfter": {
-                                                "Compute_Unique_SAN": [
-                                                    "Succeeded"
-                                                ]
-                                            },
-                                            "type": "IncrementVariable",
-                                            "inputs": {
-                                                "name": "SANCounter",
-                                                "value": 1
-                                            }
+                                            "type": "If"
                                         }
                                     },
                                     "runAfter": {
-                                        "Parse_Location": [
+                                        "Is_Manager_Null": [
                                             "Succeeded"
                                         ]
                                     },
@@ -525,7 +528,7 @@
                                             "type": "AppendToStringVariable",
                                             "inputs": {
                                                 "name": "SCIMBulkPayload",
-                                                "value": "@body('Parse_Users')"
+                                                "value": "@outputs('Construct_SCIMUser')"
                                             }
                                         },
                                         "Finalize_SCIMBulkPayload": {
@@ -634,53 +637,80 @@
                                         "Compute_employeeId": {
                                             "type": "SetVariable",
                                             "inputs": {
-                                                "name": "sAMAccountName",
-                                                "value": "@if(equals(variables('EIDCounter'),0),substring(items('For_each')?['name'],0,8),concat(substring(items('For_each')?['name'],0,7),variables('EIDCounter')))"
+                                                "name": "employeeId",
+                                                "value": "@if(equals(variables('EIDCounter'),0),substring(items('For_each_Snow_User')?[trim('name')],0,8),concat(substring(items('For_each_Snow_User')?[trim('name')],0,7),variables('EIDCounter')))"
                                             }
                                         },
-                                        "HTTP_Check_EID": {
+                                        "If_Is_New_User_2": {
+                                            "actions": {
+                                                "Compute_Unique_EID": {
+                                                    "runAfter": {
+                                                        "HTTP_Check_EID": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "SetVariable",
+                                                    "inputs": {
+                                                        "name": "UniqueEID",
+                                                        "value": "@equals(length(body('HTTP_Check_SAN')['value']),0)"
+                                                    }
+                                                },
+                                                "HTTP_Check_EID": {
+                                                    "type": "Http",
+                                                    "inputs": {
+                                                        "uri": "@{parameters('graph_uri')}/v1.0/users?$filter=employeeId eq '@{variables('employeeId')}'",
+                                                        "method": "GET",
+                                                        "authentication": {
+                                                            "type": "ManagedServiceIdentity",
+                                                            "audience": "@{parameters('graph_uri')}"
+                                                        }
+                                                    },
+                                                    "runtimeConfiguration": {
+                                                        "contentTransfer": {
+                                                            "transferMode": "Chunked"
+                                                        }
+                                                    }
+                                                },
+                                                "Increment_EID_Counter": {
+                                                    "runAfter": {
+                                                        "Compute_Unique_EID": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "IncrementVariable",
+                                                    "inputs": {
+                                                        "name": "EIDCounter",
+                                                        "value": 1
+                                                    }
+                                                }
+                                            },
                                             "runAfter": {
                                                 "Compute_employeeId": [
                                                     "Succeeded"
                                                 ]
                                             },
-                                            "type": "Http",
-                                            "inputs": {
-                                                "uri": "@{parameters('graph_uri')}/v1.0/users",
-                                                "method": "GET",
-                                                "queries": {
-                                                    "filter": "employeeId eq '@{variables('employeeId')}'"
+                                            "else": {
+                                                "actions": {
+                                                    "Set_Unique_EID_True": {
+                                                        "type": "SetVariable",
+                                                        "inputs": {
+                                                            "name": "UniqueEID",
+                                                            "value": true
+                                                        }
+                                                    }
                                                 }
                                             },
-                                            "runtimeConfiguration": {
-                                                "contentTransfer": {
-                                                    "transferMode": "Chunked"
-                                                }
-                                            }
-                                        },
-                                        "Compute_Unique_EID": {
-                                            "runAfter": {
-                                                "HTTP_Check_EID": [
-                                                    "Succeeded"
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "equals": [
+                                                            "@items('For_each_Snow_User')?['u_correlation_id']",
+                                                            "ENTRAID"
+                                                        ]
+                                                    }
                                                 ]
                                             },
-                                            "type": "SetVariable",
-                                            "inputs": {
-                                                "name": "EIDCounter",
-                                                "value": "@equals(length(body('HTTP_Check_SAN')['value']),0)"
-                                            }
-                                        },
-                                        "Increment_EID_Counter": {
-                                            "runAfter": {
-                                                "Compute_Unique_EID": [
-                                                    "Succeeded"
-                                                ]
-                                            },
-                                            "type": "IncrementVariable",
-                                            "inputs": {
-                                                "name": "EIDCounter",
-                                                "value": 1
-                                            }
+                                            "type": "If"
                                         }
                                     },
                                     "runAfter": {
@@ -695,68 +725,6 @@
                                     },
                                     "type": "Until"
                                 },
-                                "Get_Location_Details": {
-                                    "type": "Http",
-                                    "inputs": {
-                                        "uri": "@{parameters('snow_uri')}/api/now/table/cmn/location",
-                                        "method": "GET",
-                                        "queries": {
-                                            "sysparm_query": "name=@{items('For_each')?['u_azure_location']}",
-                                            "sysparm_fields": "zip,country,fullname,city,name,street,state"
-                                        }
-                                    },
-                                    "runtimeConfiguration": {
-                                        "contentTransfer": {
-                                            "transferMode": "Chunked"
-                                        }
-                                    }
-                                },
-                                "Parse_Location": {
-                                    "runAfter": {
-                                        "Get_Location_Details": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "ParseJson",
-                                    "inputs": {
-                                        "content": "@body('Get_Location_Details')",
-                                        "schema": {
-                                            "type": "object",
-                                            "properties": {
-                                                "result": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "zip": {
-                                                                "type": "string"
-                                                            },
-                                                            "city": {
-                                                                "type": "string"
-                                                            },
-                                                            "state": {
-                                                                "type": "string"
-                                                            },
-                                                            "street": {
-                                                                "type": "string"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
-                                                            },
-                                                            "full_name": {
-                                                                "type": "string"
-                                                            },
-                                                            "country": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "required": []
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
                                 "Construct_SCIMUser": {
                                     "runAfter": {
                                         "Decrement_NumberOfRecords": [
@@ -769,90 +737,470 @@
                                         "data": {
                                             "addresses": [
                                                 {
-                                                    "locality": "@{items('For_each')?['u_azure_location']}",
-                                                    "postalCode": "@{items('For_each')?['zip']}",
-                                                    "city": "@{items('For_each')?['city']}",
-                                                    "country": "@{items('For_each')?['country']}",
-                                                    "region": "@{items('For_each')?['state']}",
-                                                    "streetAddress": "@{items('For_each')?['street']}",
+                                                    "postalCode": "@{body('Parse_Location')?['result']?['zip']}",
+                                                    "locality": "@{body('Parse_Location')?['result']?['name']}",
+                                                    "country": "@{body('Parse_Location')?['result']?['country']}",
+                                                    "region": "@{body('Parse_Location')?['result']?['state']}",
+                                                    "streetAddress": "@{body('Parse_Location')?['result']?['street']}",
                                                     "type": "work"
                                                 }
                                             ],
-                                            "displayName": "@{items('For_each')?['name']}",
-                                            "externalId": "@{items('For_each')?['u_initiales']}",
+                                            "displayName": "@{items('For_each_Snow_User')?['name']}",
+                                            "externalId": "@{items('For_each_Snow_User')?['u_initials']}",
                                             "id": "@{variables('sAMAccountName')}",
                                             "name": {
-                                                "familyName": "@{items('For_each')?['last_name']}",
-                                                "givenName": "@{items('For_each')?['first_name']}"
+                                                "familyName": "@{items('For_each_Snow_User')?['last_name']}",
+                                                "givenName": "@{items('For_each_Snow_User')?['first_name']}"
                                             },
                                             "phoneNumbers": [
                                                 {
-                                                    "type": "personal",
-                                                    "value": "@{items('For_each')?['mobile_phone']}"
+                                                    "type": "mobile",
+                                                    "value": "@{items('For_each_Snow_User')?['u_personal_mobile_phone']}"
                                                 },
                                                 {
                                                     "type": "work",
-                                                    "value": "@{items('For_each')?['phone']}"
+                                                    "value": "@{items('For_each_Snow_User')?['phone']}"
                                                 }
                                             ],
-                                            "title": "@{items('For_each')?['title']}",
+                                            "title": "@{items('For_each_Snow_User')?['title']}",
                                             "schemas": [
                                                 "urn:ietf:params:scim:schemas:core:2.0:User",
                                                 "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
-                                                "urn:ietf:params:scim:schemas:extension:pgsa:1.0:User"
+                                                "urn:ietf:params:scim:schemas:extension:company:1.0:User"
                                             ],
                                             "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
-                                                "department": "@{items('For_each')?['u_azure_department']}",
-                                                "employeeNumber": "@{variables('employeeId')}",
-                                                "manager": {
-                                                    "value": "@{items('For_each')?['manager']}"
-                                                }
+                                                "department": "@{body('Parse_Department')?['result']?['name']}",
+                                                "employeeNumber": "@{variables('employeeId')}"
                                             },
-                                            "urn:ietf:params:scim:schemas:extension:pgsa:1.0:User": {
-                                                "gender": "@{items('For_each')?['gender']}",
-                                                "employeeStartDate": "@{items('For_each')?['u_start_date']}",
-                                                "employeeLeaveDate": "@{items('For_each')?['u_end_date']}",
-                                                "apsys": "@{items('For_each')?['u_apsys']}",
-                                                "diploma": "@{items('For_each')?['u_diploma']}",
-                                                "grade": "@{items('For_each')?['u_grade']}",
-                                                "occupationRate": "@{items('For_each')?['u_occupation_rate']}"
+                                            "urn:ietf:params:scim:schemas:extension:company:1.0:User": {
+                                                "gender": "@{items('For_each_Snow_User')?['gender']}",
+                                                "employeeStartDate": "@{items('For_each_Snow_User')?['u_employee_start_date']}",
+                                                "employeeLeaveDate": "@{items('For_each_Snow_User')?['u_employee_end_date']}",
+                                                "apsys": "@{items('For_each_Snow_User')?['u_role_keyuser_apsys']}",
+                                                "diploma": "@{items('For_each_Snow_User')?['u_degree']}",
+                                                "grade": "@{items('For_each_Snow_User')?['u_grade']}",
+                                                "occupationRate": "@{items('For_each_Snow_User')?['u_occupation_rate']}",
+                                                "office": "@{body('Parse_Location')?['result']?['city']}",
+                                                "snowId": "@{items('For_each_Snow_User')?['sys_id']}",
+                                                "Manager": "@{body('Parse_Manager')?['result']?['last_name']}",
+                                                "poBox": "@{body('Parse_Location')?['result']?['u_po_box']}",
+                                                "personalMail": "@{items('For_each_Snow_User')?['u_personal_email']}"
                                             }
                                         },
                                         "method": "POST",
                                         "path": "/Users"
                                     }
                                 },
-                                "Set_UPN": {
+                                "Reset_SAN_Counter": {
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "SANCounter",
+                                        "value": 0
+                                    }
+                                },
+                                "Reset_EID_Counter": {
                                     "runAfter": {
-                                        "Until2": [
+                                        "Reset_SAN_Counter": [
                                             "Succeeded"
                                         ]
                                     },
                                     "type": "SetVariable",
                                     "inputs": {
-                                        "name": "userPrincipalName",
-                                        "value": "@concat(variables('sAMAccountName'),'@domain.com')"
+                                        "name": "EIDCounter",
+                                        "value": 0
                                     }
                                 },
-                                "Update_Snow_CorrelationID_with_UPN": {
+                                "Is_Location_Null": {
+                                    "actions": {},
                                     "runAfter": {
-                                        "Set_UPN": [
+                                        "Reset_EID_Counter": [
                                             "Succeeded"
                                         ]
                                     },
-                                    "type": "Http",
-                                    "inputs": {
-                                        "uri": "@{parameters('snow_uri')}/api/now/table/sys_user/@{items('For_each')?['sys_id']}",
-                                        "method": "PATCH",
-                                        "body": {
-                                            "u_correlation_id": "@{variables('userPrincipalName')}"
+                                    "else": {
+                                        "actions": {
+                                            "Get_Location_Details": {
+                                                "type": "Http",
+                                                "inputs": {
+                                                    "uri": "@items('For_each_Snow_User')?['location']['link']",
+                                                    "method": "GET",
+                                                    "headers": {
+                                                        "Authorization": "Bearer @{body('Parse_JSON')['access_token']}"
+                                                    },
+                                                    "queries": {
+                                                        "sysparm_fields": "zip,country,fullname,city,name,street,state,u_po_box"
+                                                    }
+                                                },
+                                                "runtimeConfiguration": {
+                                                    "contentTransfer": {
+                                                        "transferMode": "Chunked"
+                                                    }
+                                                }
+                                            },
+                                            "Parse_Location": {
+                                                "runAfter": {
+                                                    "Get_Location_Details": [
+                                                        "Succeeded"
+                                                    ]
+                                                },
+                                                "type": "ParseJson",
+                                                "inputs": {
+                                                    "content": "@body('Get_Location_Details')",
+                                                    "schema": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "result": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "zip": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "country": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "full_name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "city": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "u_po_box": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "street": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "state": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     },
-                                    "runtimeConfiguration": {
-                                        "contentTransfer": {
-                                            "transferMode": "Chunked"
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@items('For_each_Snow_User')?['location']",
+                                                    ""
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                },
+                                "Is_Manager_Null": {
+                                    "actions": {},
+                                    "runAfter": {
+                                        "Is_Department_Null": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "else": {
+                                        "actions": {
+                                            "Get_Manager_Details": {
+                                                "type": "Http",
+                                                "inputs": {
+                                                    "uri": "@{items('For_each_Snow_User')?['manager']['link']}",
+                                                    "method": "GET",
+                                                    "headers": {
+                                                        "Authorization": "Bearer @{body('Parse_JSON')['access_token']}"
+                                                    },
+                                                    "queries": {
+                                                        "sysparm_fields": "user_name,sys_id,last_name"
+                                                    }
+                                                },
+                                                "runtimeConfiguration": {
+                                                    "contentTransfer": {
+                                                        "transferMode": "Chunked"
+                                                    }
+                                                }
+                                            },
+                                            "Parse_Manager": {
+                                                "runAfter": {
+                                                    "Get_Manager_Details": [
+                                                        "Succeeded"
+                                                    ]
+                                                },
+                                                "type": "ParseJson",
+                                                "inputs": {
+                                                    "content": "@body('Get_Manager_Details')",
+                                                    "schema": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "result": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "user_name": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "sys_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "last_name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "Set_MGRSAN": {
+                                                "runAfter": {
+                                                    "Parse_Manager": [
+                                                        "Succeeded"
+                                                    ]
+                                                },
+                                                "type": "SetVariable",
+                                                "inputs": {
+                                                    "name": "managerSAN",
+                                                    "value": "@first(split(body('Parse_Manager')?['result']?['user_name'],'@'))"
+                                                }
+                                            },
+                                            "Set_managerEmployeeNumber": {
+                                                "runAfter": {
+                                                    "Set_MGRSAN": [
+                                                        "Succeeded"
+                                                    ]
+                                                },
+                                                "type": "SetVariable",
+                                                "inputs": {
+                                                    "name": "managerEmplyeeNumber",
+                                                    "value": "@body('Parse_Manager')?['result']?['sys_id']"
+                                                }
+                                            }
                                         }
-                                    }
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@items('For_each_Snow_User')?['manager']",
+                                                    ""
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                },
+                                "Is_Department_Null": {
+                                    "actions": {},
+                                    "runAfter": {
+                                        "Is_Location_Null": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "else": {
+                                        "actions": {
+                                            "Get_Department_Details": {
+                                                "type": "Http",
+                                                "inputs": {
+                                                    "uri": "@{items('For_each_Snow_User')?['department']['link']}",
+                                                    "method": "GET",
+                                                    "headers": {
+                                                        "Authorization": "Bearer @{body('Parse_JSON')['access_token']}"
+                                                    },
+                                                    "queries": {
+                                                        "sysparm_fields": "name"
+                                                    }
+                                                },
+                                                "runtimeConfiguration": {
+                                                    "contentTransfer": {
+                                                        "transferMode": "Chunked"
+                                                    }
+                                                }
+                                            },
+                                            "Parse_Department": {
+                                                "runAfter": {
+                                                    "Get_Department_Details": [
+                                                        "Succeeded"
+                                                    ]
+                                                },
+                                                "type": "ParseJson",
+                                                "inputs": {
+                                                    "content": "@body('Get_Department_Details')",
+                                                    "schema": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "result": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@items('For_each_Snow_User')?['department']",
+                                                    ""
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                },
+                                "Entra_GUID_Sync": {
+                                    "actions": {
+                                        "Has_UserName_and_not_new_User": {
+                                            "actions": {
+                                                "HTTP_Get_Corresponding_GUID_1": {
+                                                    "type": "Http",
+                                                    "inputs": {
+                                                        "uri": "@{parameters('graph_uri')}/v1.0/users/@{items('For_each_Snow_User')['user_name']}",
+                                                        "method": "GET",
+                                                        "queries": {
+                                                            "$select": "id"
+                                                        },
+                                                        "authentication": {
+                                                            "type": "ManagedServiceIdentity",
+                                                            "audience": "@{parameters('graph_uri')}"
+                                                        }
+                                                    },
+                                                    "runtimeConfiguration": {
+                                                        "contentTransfer": {
+                                                            "transferMode": "Chunked"
+                                                        }
+                                                    }
+                                                },
+                                                "Parse_Corresponding_GUID_1": {
+                                                    "runAfter": {
+                                                        "HTTP_Get_Corresponding_GUID_1": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "ParseJson",
+                                                    "inputs": {
+                                                        "content": "@body('HTTP_Get_Corresponding_GUID_1')",
+                                                        "schema": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "HTTP_Update_Snow_User_GUID_1": {
+                                                    "runAfter": {
+                                                        "Parse_Corresponding_GUID_1": [
+                                                            "Succeeded"
+                                                        ]
+                                                    },
+                                                    "type": "Http",
+                                                    "inputs": {
+                                                        "uri": "@{parameters('snow_uri')}/api/now/table/sys_user/@{items('For_each_Snow_User')['sys_id']}",
+                                                        "method": "PUT",
+                                                        "headers": {
+                                                            "Authorization": "Bearer @{body('Parse_JSON')['access_token']}"
+                                                        },
+                                                        "body": {
+                                                            "u_correlation_id": "@{body('Parse_Corresponding_GUID_1')?['id']}"
+                                                        }
+                                                    },
+                                                    "runtimeConfiguration": {
+                                                        "contentTransfer": {
+                                                            "transferMode": "Chunked"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "else": {
+                                                "actions": {}
+                                            },
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "endsWith": [
+                                                            "@items('For_each_Snow_User')?['user_name']",
+                                                            "@{parameters('target_domain')}"
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "type": "If"
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Update_Correlation": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Scope"
+                                },
+                                "Update_Correlation": {
+                                    "actions": {
+                                        "Set_UPN": {
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "userPrincipalName",
+                                                "value": "@concat(@concat(variables('sAMAccountName'),'@'),@{parameters('target_domain')})"
+                                            }
+                                        },
+                                        "Update_Snow_Status_and_UserName_with_UPN": {
+                                            "runAfter": {
+                                                "Set_UPN": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "@{parameters('snow_uri')}/api/now/table/sys_user/@{items('For_each_Snow_User')['sys_id']}",
+                                                "method": "PUT",
+                                                "headers": {
+                                                    "Authorization": "Bearer @{body('Parse_JSON')['access_token']}"
+                                                },
+                                                "body": {
+                                                    "user_name": "@{variables('userPrincipalName')}",
+                                                    "u_azure_status": "active",
+                                                    "u_correlation_id": "waiting_entra_creation"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Until2": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "else": {
+                                        "actions": {}
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "not": {
+                                                    "endsWith": [
+                                                        "@items('For_each_Snow_User')?['user_name']",
+                                                        "@{parameters('target_domain')}"
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
                                 }
                             },
                             "runAfter": {
@@ -867,7 +1215,33 @@
                                 }
                             }
                         },
-                        "Get_Snow_ClientSecret": {
+                        "HTTP_Get_Users": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "@{parameters('snow_uri')}/api/now/table/sys_user",
+                                "method": "GET",
+                                "headers": {
+                                    "Authorization": "Bearer @{body('Parse_JSON')['access_token']}",
+                                    "Content-Type": "application/json",
+                                    "Accept": "application/json"
+                                },
+                                "queries": {
+                                    "sysparm_query": "u_correlation_id!=null",
+                                    "sysparm_fields": "gender,first_name,last_name,name,u_initials,u_grade,title,manager,u_degree,u_azure_department,u_workload,u_start_date,u_end_date,mobile_phone,phone,u_personal_mobile_phone,u_personal_email,u_role_keyuser_apsys,u_azure_location,sys_id,u_correlation_id,u_employee_start_date,u_employee_end_date,location,manager,department,user_name"
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
+                        "Get_clientId": {
                             "runAfter": {},
                             "type": "ApiConnection",
                             "inputs": {
@@ -877,7 +1251,7 @@
                                     }
                                 },
                                 "method": "get",
-                                "path": "/secrets/@{encodeURIComponent('secret1')}/value"
+                                "path": "/secrets/@{encodeURIComponent('snowclientid')}/value"
                             },
                             "runtimeConfiguration": {
                                 "secureData": {
@@ -888,9 +1262,9 @@
                                 }
                             }
                         },
-                        "Get_Snow_Password": {
+                        "Get_clientSecret": {
                             "runAfter": {
-                                "Get_Snow_ClientSecret": [
+                                "Get_clientId": [
                                     "Succeeded"
                                 ]
                             },
@@ -902,7 +1276,7 @@
                                     }
                                 },
                                 "method": "get",
-                                "path": "/secrets/@{encodeURIComponent('secret2')}/value"
+                                "path": "/secrets/@{encodeURIComponent('snowclientsecret')}/value"
                             },
                             "runtimeConfiguration": {
                                 "secureData": {
@@ -912,12 +1286,129 @@
                                     ]
                                 }
                             }
+                        },
+                        "Get_username": {
+                            "runAfter": {
+                                "Get_clientSecret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['keyvault']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/secrets/@{encodeURIComponent('snowusername')}/value"
+                            },
+                            "runtimeConfiguration": {
+                                "secureData": {
+                                    "properties": [
+                                        "inputs",
+                                        "outputs"
+                                    ]
+                                }
+                            }
+                        },
+                        "Get_password": {
+                            "runAfter": {
+                                "Get_username": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['keyvault']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/secrets/@{encodeURIComponent('snowpassword')}/value"
+                            },
+                            "runtimeConfiguration": {
+                                "secureData": {
+                                    "properties": [
+                                        "inputs",
+                                        "outputs"
+                                    ]
+                                }
+                            }
+                        },
+                        "HTTP_get_token": {
+                            "runAfter": {
+                                "Get_password": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "@{parameters('snow_uri')}/oauth_token.do",
+                                "method": "POST",
+                                "headers": {
+                                    "Content-Type": "application/x-www-form-urlencoded",
+                                    "Accept": "application/json"
+                                },
+                                "body": "@{concat('grant_type=password&client_secret=', encodeUriComponent(body('Get_clientSecret')?['value']), '&client_id=', body('Get_clientId')?['value'], '&username=', body('Get_username')?['value'], '&password=', encodeUriComponent(body('Get_password')?['value']))}"
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "HTTP_get_token": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_get_token')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string",
+                                            "description": "The access token for authentication"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string",
+                                            "description": "The refresh token to obtain new access tokens"
+                                        },
+                                        "scope": {
+                                            "type": "string",
+                                            "description": "The scope of the access token"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "description": "The type of token, typically 'Bearer'"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "description": "Token expiration time in seconds"
+                                        }
+                                    },
+                                    "required": [
+                                        "access_token",
+                                        "refresh_token",
+                                        "scope",
+                                        "token_type",
+                                        "expires_in"
+                                    ],
+                                    "additionalProperties": false
+                                }
+                            }
                         }
                     },
                     "outputs": {}
                 },
                 "parameters": {
                     "$connections": {
+                        "type": "Object",
                         "value": {
                             "keyvault": {
                                 "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'keyvault')]",

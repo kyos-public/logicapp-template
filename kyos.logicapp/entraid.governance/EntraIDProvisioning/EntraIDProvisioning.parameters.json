@@ -1,11 +1,11 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "workflows_create_ad_from_snow_name": {
+        "workflows_lap_create_ad_from_snow_prod_chn_name": {
             "value": "create-ad-from-snow"
         },
-        "keyVaultName": {
+        "connections_keyvault_connection_externalid": {
             "value": "your-keyvault-name"
         }
     }
