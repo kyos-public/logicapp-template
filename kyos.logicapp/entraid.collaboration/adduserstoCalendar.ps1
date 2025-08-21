@@ -1,6 +1,9 @@
 # Grant Room Calendar Permissions to External Users from Group Guests
 # This script retrieves guest users from a specified group, extracts their external email addresses,
 # and grants read permissions to a room calendar for those external users.
+# 
+# This version uses Microsoft Graph REST API only (no PowerShell module dependencies)
+# and requires Service Principal authentication.
 
 param(
     [Parameter(Mandatory = $true)]
@@ -9,13 +12,13 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$RoomEmailAddress,
     
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $true)]
     [string]$TenantId,
     
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $true)]
     [string]$ClientId,
     
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $true)]
     [string]$ClientSecret
 )
 
@@ -32,46 +35,22 @@ function Connect-ToGraphAPI {
     )
     
     try {
-        if ($TenantId -and $ClientId -and $ClientSecret) {
-            # Service Principal authentication
-            Write-Host "Connecting to Microsoft Graph using Service Principal..." -ForegroundColor Yellow
-            
-            $body = @{
-                Grant_Type    = "client_credentials"
-                Scope         = "https://graph.microsoft.com/.default"
-                Client_Id     = $ClientId
-                Client_Secret = $ClientSecret
-            }
-            
-            $connection = Invoke-RestMethod -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Method POST -Body $body
-            $global:headers = @{
-                Authorization = "Bearer $($connection.access_token)"
-                'Content-Type' = 'application/json'
-            }
-            Write-Host "Successfully connected to Microsoft Graph!" -ForegroundColor Green
+        # Service Principal authentication using REST API
+        Write-Host "Connecting to Microsoft Graph using Service Principal..." -ForegroundColor Yellow
+        
+        $body = @{
+            Grant_Type    = "client_credentials"
+            Scope         = "https://graph.microsoft.com/.default"
+            Client_Id     = $ClientId
+            Client_Secret = $ClientSecret
         }
-        else {
-            # Interactive authentication using Microsoft.Graph module
-            Write-Host "Connecting to Microsoft Graph interactively..." -ForegroundColor Yellow
-            
-            # Check if Microsoft.Graph module is installed
-            if (-not (Get-Module -ListAvailable -Name Microsoft.Graph)) {
-                Write-Error "Microsoft.Graph module is not installed. Please install it using: Install-Module Microsoft.Graph -Scope CurrentUser"
-                return $false
-            }
-            
-            # Import required modules
-            Import-Module Microsoft.Graph.Authentication
-            Import-Module Microsoft.Graph.Groups
-            Import-Module Microsoft.Graph.Users
-            Import-Module Microsoft.Graph.Calendar
-            
-            # Connect with required scopes
-            Connect-MgGraph -Scopes "Group.Read.All", "User.Read.All", "Calendars.ReadWrite.Shared"
-            
-            $global:useGraphModule = $true
-            Write-Host "Successfully connected to Microsoft Graph!" -ForegroundColor Green
+        
+        $connection = Invoke-RestMethod -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Method POST -Body $body
+        $global:headers = @{
+            Authorization = "Bearer $($connection.access_token)"
+            'Content-Type' = 'application/json'
         }
+        Write-Host "Successfully connected to Microsoft Graph!" -ForegroundColor Green
         return $true
     }
     catch {
@@ -86,31 +65,18 @@ function Get-GroupGuestUsers {
     try {
         Write-Host "Retrieving guest users from group: $GroupId" -ForegroundColor Yellow
         
-        if ($global:useGraphModule) {
-            # Using Microsoft.Graph module
-            $members = Get-MgGroupMember -GroupId $GroupId -All
-            $guestUsers = $members | Where-Object { $_.AdditionalProperties.userType -eq "Guest" }
-            
-            $guests = @()
-            foreach ($guest in $guestUsers) {
-                $userDetails = Get-MgUser -UserId $guest.Id -Property "id,mail,userPrincipalName,userType,displayName"
-                $guests += $userDetails
-            }
-        }
-        else {
-            # Using REST API
-            $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$filter=userType eq 'Guest'&`$select=id,mail,userPrincipalName,userType,displayName"
-            $response = Invoke-RestMethod -Uri $uri -Headers $global:headers -Method GET
-            $guests = $response.value
-            
-            # Handle pagination if needed
-            while ($response.'@odata.nextLink') {
-                $response = Invoke-RestMethod -Uri $response.'@odata.nextLink' -Headers $global:headers -Method GET
-                $guests += $response.value
-            }
+        # Using REST API only
+        $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$select=id,mail,userPrincipalName,userType,displayName"
+        $response = Invoke-RestMethod -Uri $uri -Headers $global:headers -Method GET
+        $guests = $response.value
+        
+        # Handle pagination if needed
+        while ($response.'@odata.nextLink') {
+            $response = Invoke-RestMethod -Uri $response.'@odata.nextLink' -Headers $global:headers -Method GET
+            $guests += $response.value
         }
         
-        Write-Host "Found $($guests.Count) guest users in the group" -ForegroundColor Green
+        Write-Host "Found $($guests.Count) members in the group" -ForegroundColor Green
         return $guests
     }
     catch {
@@ -180,43 +146,29 @@ function Grant-CalendarPermissions {
             try {
                 Write-Host "  Granting permission to: $($user.ExternalEmail)" -ForegroundColor Cyan
                 
-                if ($global:useGraphModule) {
-                    # Using Microsoft.Graph module
-                    $permission = @{
-                        EmailAddress = @{
-                            Address = $user.ExternalEmail
-                            Name = $user.DisplayName
-                        }
-                        Role = "read"
+                # Using REST API only
+                $permissionBody = @{
+                    emailAddress = @{
+                        address = $user.ExternalEmail
+                        name = $user.DisplayName
                     }
-                    
-                    # Note: Calendar permissions via Graph module might require different approach
-                    # This is a placeholder for the Graph module method
-                    Write-Warning "  Calendar permission granting via Graph module requires additional implementation"
-                }
-                else {
-                    # Using REST API
-                    $permissionBody = @{
-                        emailAddress = @{
-                            address = $user.ExternalEmail
-                            name = $user.DisplayName
-                        }
-                        role = "read"
-                    } | ConvertTo-Json -Depth 3
-                    
-                    $uri = "https://graph.microsoft.com/v1.0/users/$RoomEmailAddress/calendar/calendarPermissions"
-                    $response = Invoke-RestMethod -Uri $uri -Headers $global:headers -Method POST -Body $permissionBody
-                    
-                    Write-Host "    ✓ Successfully granted read permission" -ForegroundColor Green
-                    $successCount++
-                }
+                    role = "read"
+                } | ConvertTo-Json -Depth 3
+                
+                $uri = "https://graph.microsoft.com/v1.0/users/$RoomEmailAddress/calendar/calendarPermissions"
+                $null = Invoke-RestMethod -Uri $uri -Headers $global:headers -Method POST -Body $permissionBody
+                
+                Write-Host "    ✓ Successfully granted read permission" -ForegroundColor Green
+                $successCount++
             }
             catch {
                 Write-Warning "    ✗ Failed to grant permission: $($_.Exception.Message)"
                 $failureCount++
                 
                 # Log the specific error for troubleshooting
-                Write-Host "      Error details: $($_.Exception.Response.StatusCode) - $($_.Exception.Response.StatusDescription)" -ForegroundColor Red
+                if ($_.Exception.Response) {
+                    Write-Host "      Error details: $($_.Exception.Response.StatusCode) - $($_.Exception.Response.StatusDescription)" -ForegroundColor Red
+                }
             }
         }
         
@@ -303,30 +255,22 @@ catch {
     Write-Host "Stack trace: $($_.Exception.StackTrace)" -ForegroundColor Red
 }
 finally {
-    # Disconnect from Graph if using module
-    if ($global:useGraphModule) {
-        try {
-            Disconnect-MgGraph -ErrorAction SilentlyContinue
-            Write-Host "Disconnected from Microsoft Graph" -ForegroundColor Yellow
-        }
-        catch {
-            # Ignore disconnection errors
-        }
-    }
+    # Clean up
+    Write-Host "Script execution completed." -ForegroundColor Yellow
 }
 
 # Example usage:
 <#
-# Using Service Principal authentication:
+# Using Service Principal authentication (REQUIRED):
 .\adduserstoCalendar.ps1 -GroupId "12345678-1234-1234-1234-123456789012" -RoomEmailAddress "room@company.com" -TenantId "your-tenant-id" -ClientId "your-client-id" -ClientSecret "your-client-secret"
-
-# Using interactive authentication:
-.\adduserstoCalendar.ps1 -GroupId "12345678-1234-1234-1234-123456789012" -RoomEmailAddress "room@company.com"
 
 # Required Graph API Permissions for Service Principal:
 # - Group.Read.All
 # - User.Read.All  
 # - Calendars.ReadWrite.Shared
+
+# Note: This script uses Graph REST API only and requires Service Principal authentication.
+# Interactive authentication is not supported in this version.
 #>
 
 # 1c6aa84d-9f9d-4178-997a-575ae9325969
