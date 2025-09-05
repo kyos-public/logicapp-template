@@ -6,7 +6,7 @@ param (
     [string]$department = "",
 
     [Parameter(Mandatory=$false)]
-    [string]$groupsJsonPath = "$PSScriptRoot\..\Files\Groups.json"
+    [string]$accessPackageJsonPath = "$PSScriptRoot\..\Files\access_package_groupe_ad.json"
 )
 
 # Logic Apps error handling
@@ -18,34 +18,64 @@ $failedGroups = @()
 $errors = @()
 
 try {
-    # Validate Groups.json path
-    if (-not (Test-Path $groupsJsonPath)) {
-        throw "Fichier Groups.json non trouvé : $groupsJsonPath"
+    # Validate access package JSON path
+    if (-not (Test-Path $accessPackageJsonPath)) {
+        throw "Fichier access_package_groupe_ad.json non trouvé : $accessPackageJsonPath"
     }
 
-    Write-Output "Lecture du fichier Groups.json depuis: $groupsJsonPath"
+    Write-Output "Lecture du fichier access_package_groupe_ad.json depuis: $accessPackageJsonPath"
     
-    # Lire le fichier Groups.json
-    $groupsData = Get-Content -Path $groupsJsonPath -Raw | ConvertFrom-Json
-    Write-Output "Fichier Groups.json lu avec succès"
+    # Lire le fichier access package JSON
+    $accessPackageData = Get-Content -Path $accessPackageJsonPath -Raw | ConvertFrom-Json
+    Write-Output "Fichier access_package_groupe_ad.json lu avec succès"
 
     # Construire la liste des groupes à assigner
     $groupDNs = @()
 
-    # Ajouter les groupes de base (obligatoires pour tous les utilisateurs)
-    if ($groupsData.baseGroups) {
-        $groupDNs += $groupsData.baseGroups
-        Write-Output "Ajout de $($groupsData.baseGroups.Count) groupes de base"
+    # Ajouter les groupes communs (obligatoires pour tous les utilisateurs)
+    if ($accessPackageData.Commun) {
+        $groupDNs += $accessPackageData.Commun
+        Write-Output "Ajout de $($accessPackageData.Commun.Count) groupes communs"
     }
 
     # Ajouter les groupes spécifiques au département si fourni
-    if (-not [string]::IsNullOrEmpty($department) -and $groupsData.departmentGroups.PSObject.Properties.Name -contains $department) {
-        $departmentGroups = $groupsData.departmentGroups.$department
+    if (-not [string]::IsNullOrEmpty($department) -and $accessPackageData.PSObject.Properties.Name -contains $department) {
+        $departmentGroups = $accessPackageData.$department
         $groupDNs += $departmentGroups
         Write-Output "Ajout de $($departmentGroups.Count) groupes pour le département: $department"
+    } elseif (-not [string]::IsNullOrEmpty($department)) {
+        Write-Warning "Département '$department' non trouvé dans le fichier access package"
     }
 
     Write-Output "Total de $($groupDNs.Count) groupes à traiter"
+
+    # Convertir les noms de groupes en DNs complets si nécessaire
+    $processedGroups = @()
+    foreach ($groupName in $groupDNs) {
+        if ($groupName.StartsWith("CN=")) {
+            # Déjà un DN complet
+            $processedGroups += $groupName
+        } elseif ($groupName.Contains("@")) {
+            # Adresse email - pas un groupe AD, ignorer
+            Write-Warning "Ignorer l'adresse email: $groupName"
+            continue
+        } else {
+            # Nom de groupe simple, essayer de le résoudre
+            try {
+                $group = Get-ADGroup -Filter "SamAccountName -eq '$groupName'" -ErrorAction Stop
+                $processedGroups += $group.DistinguishedName
+                Write-Output "Groupe résolu: $groupName -> $($group.DistinguishedName)"
+            }
+            catch {
+                Write-Warning "Impossible de résoudre le groupe: $groupName - $($_.Exception.Message)"
+                # Ajouter le nom tel quel pour tenter l'ajout direct
+                $processedGroups += $groupName
+            }
+        }
+    }
+    
+    $groupDNs = $processedGroups
+    Write-Output "Total de $($groupDNs.Count) groupes après traitement"
 
     # Résolution du compte utilisateur
     Write-Output "Recherche de l'utilisateur: $userPrincipalName"
