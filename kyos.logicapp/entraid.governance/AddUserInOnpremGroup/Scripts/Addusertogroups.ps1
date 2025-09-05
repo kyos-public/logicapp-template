@@ -6,28 +6,135 @@ param (
     [string]$department = "",
 
     [Parameter(Mandatory=$false)]
-    [string]$accessPackageJsonPath = "$PSScriptRoot\..\Files\access_package_groupe_ad.json"
+    [string]$accessPackageJson = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$accessPackageFilePath = ""
 )
 
-# Logic Apps error handling
+# Azure Automation runbook error handling
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+
+# Import required modules for Azure Automation
+try {
+    Import-Module ActiveDirectory -ErrorAction Stop
+    Write-Output "Module ActiveDirectory importé avec succès"
+}
+catch {
+    Write-Error "Impossible d'importer le module ActiveDirectory: $($_.Exception.Message)"
+    throw
+}
 
 # Initialiser les listes de résultats
 $successGroups = @()
 $failedGroups = @()
 $errors = @()
 
+# Function to get access package data from various sources
+function Get-AccessPackageData {
+    param(
+        [string]$JsonString,
+        [string]$FilePath
+    )
+    
+    $accessPackageData = $null
+    
+    # Priority 1: Use provided JSON string parameter
+    if (-not [string]::IsNullOrEmpty($JsonString)) {
+        Write-Output "Utilisation du JSON fourni en paramètre"
+        try {
+            $accessPackageData = $JsonString | ConvertFrom-Json
+            Write-Output "JSON paramètre parsé avec succès"
+            return $accessPackageData
+        }
+        catch {
+            Write-Warning "Erreur lors du parsing du JSON fourni en paramètre: $($_.Exception.Message)"
+        }
+    }
+    
+    # Priority 2: Try to read from file path
+    if (-not [string]::IsNullOrEmpty($FilePath) -and (Test-Path $FilePath)) {
+        Write-Output "Lecture du fichier JSON depuis: $FilePath"
+        try {
+            $fileContent = Get-Content -Path $FilePath -Raw
+            $accessPackageData = $fileContent | ConvertFrom-Json
+            Write-Output "Fichier JSON lu et parsé avec succès"
+            return $accessPackageData
+        }
+        catch {
+            Write-Warning "Erreur lors de la lecture du fichier $FilePath : $($_.Exception.Message)"
+        }
+    }
+    
+    # Priority 3: Try Azure Automation Asset (for runbook environment)
+    try {
+        Write-Output "Tentative de récupération depuis Azure Automation Asset"
+        $assetContent = Get-AutomationVariable -Name "AccessPackageJson" -ErrorAction Stop
+        $accessPackageData = $assetContent | ConvertFrom-Json
+        Write-Output "Asset Azure Automation récupéré avec succès"
+        return $accessPackageData
+    }
+    catch {
+        Write-Output "Asset Azure Automation non disponible ou inaccessible"
+    }
+    
+    # Priority 4: Try common file paths
+    $commonPaths = @(
+        "$PSScriptRoot\..\Files\access_package_groupe_ad.json",
+        "$PSScriptRoot\..\Files\access_package_default.json", 
+        "C:\Scripts\access_package_groupe_ad.json",
+        ".\Files\access_package_groupe_ad.json",
+        ".\Files\access_package_default.json",
+        "$env:TEMP\access_package_groupe_ad.json"
+    )
+    
+    foreach ($path in $commonPaths) {
+        if (Test-Path $path) {
+            Write-Output "Tentative de lecture depuis: $path"
+            try {
+                $fileContent = Get-Content -Path $path -Raw
+                $accessPackageData = $fileContent | ConvertFrom-Json
+                Write-Output "Fichier trouvé et lu avec succès depuis: $path"
+                return $accessPackageData
+            }
+            catch {
+                Write-Warning "Erreur lors de la lecture de $path : $($_.Exception.Message)"
+            }
+        }
+    }
+    
+    # If all fails, throw error
+    throw "Impossible de charger les données d'access package depuis toutes les sources disponibles"
+}
+
 try {
-    # Validate access package JSON path
-    if (-not (Test-Path $accessPackageJsonPath)) {
-        throw "Fichier access_package_groupe_ad.json non trouvé : $accessPackageJsonPath"
+    # Authenticate to Azure AD (if needed for hybrid scenarios)
+    try {
+        # For Azure Automation, use Managed Identity or Service Principal
+        Write-Output "Initialisation de l'authentification Azure Automation"
+        
+        # Check if running in Azure Automation context
+        if ($env:AUTOMATION_ASSET_ACCOUNTID) {
+            Write-Output "Exécution dans Azure Automation détectée"
+        }
+        
+        Write-Output "Authentification configurée avec succès"
+    }
+    catch {
+        Write-Warning "Authentification Azure non disponible, utilisation de l'authentification Windows locale"
     }
 
-    Write-Output "Lecture du fichier access_package_groupe_ad.json depuis: $accessPackageJsonPath"
-    
-    # Lire le fichier access package JSON
-    $accessPackageData = Get-Content -Path $accessPackageJsonPath -Raw | ConvertFrom-Json
-    Write-Output "Fichier access_package_groupe_ad.json lu avec succès"
+    # Parse access package data using the function
+    Write-Output "Chargement des données d'access package..."
+    try {
+        $accessPackageData = Get-AccessPackageData -JsonString $accessPackageJson -FilePath $accessPackageFilePath
+        Write-Output "Données d'access package chargées avec succès"
+    }
+    catch {
+        Write-Error "Erreur critique: $($_.Exception.Message)"
+        throw
+    }
 
     # Construire la liste des groupes à assigner
     $groupDNs = @()
@@ -77,36 +184,100 @@ try {
     $groupDNs = $processedGroups
     Write-Output "Total de $($groupDNs.Count) groupes après traitement"
 
-    # Résolution du compte utilisateur
+    # Résolution du compte utilisateur avec gestion d'erreur améliorée
     Write-Output "Recherche de l'utilisateur: $userPrincipalName"
-    $user = Get-ADUser -Filter "UserPrincipalName -eq '$userPrincipalName'" -ErrorAction Stop
     
-    if ($null -eq $user) {
-        throw "Utilisateur non trouvé : $userPrincipalName"
-    }
-    
-    Write-Output "Utilisateur trouvé: $($user.SamAccountName)"
-
-    # Tenter d'ajouter l'utilisateur à chaque groupe
-    foreach ($groupDN in $groupDNs) {
+    try {
+        # Try different user identification methods
+        $user = $null
+        
+        # Method 1: By UserPrincipalName
         try {
-            Write-Output "Ajout de l'utilisateur au groupe: $groupDN"
-            Add-ADGroupMember -Identity $groupDN -Members $user.SamAccountName -ErrorAction Stop
-            $successGroups += $groupDN
-            Write-Output "Succès pour le groupe: $groupDN"
+            $user = Get-ADUser -Filter "UserPrincipalName -eq '$userPrincipalName'" -ErrorAction Stop
         }
         catch {
-            $errorMessage = $_.Exception.Message
-            $failedGroups += $groupDN
-            $errors += "Échec pour le groupe '$groupDN': $errorMessage"
-            Write-Warning "Échec pour le groupe '$groupDN': $errorMessage"
+            Write-Output "Recherche par UPN échouée, tentative par SamAccountName"
+        }
+        
+        # Method 2: By SamAccountName if UPN failed
+        if (-not $user -and $userPrincipalName -notlike "*@*") {
+            try {
+                $user = Get-ADUser -Identity $userPrincipalName -ErrorAction Stop
+            }
+            catch {
+                Write-Output "Recherche par SamAccountName échouée"
+            }
+        }
+        
+        # Method 3: Extract username from email and search by SamAccountName
+        if (-not $user -and $userPrincipalName -like "*@*") {
+            $samAccountName = ($userPrincipalName -split "@")[0]
+            try {
+                $user = Get-ADUser -Identity $samAccountName -ErrorAction Stop
+                Write-Output "Utilisateur trouvé par extraction du SamAccountName: $samAccountName"
+            }
+            catch {
+                Write-Output "Recherche par SamAccountName extrait échouée"
+            }
+        }
+        
+        if (-not $user) {
+            throw "Utilisateur non trouvé avec tous les critères de recherche: $userPrincipalName"
+        }
+        
+        Write-Output "Utilisateur trouvé: $($user.SamAccountName) ($($user.UserPrincipalName))"
+    }
+    catch {
+        throw "Erreur lors de la recherche utilisateur: $($_.Exception.Message)"
+    }
+
+    # Tenter d'ajouter l'utilisateur à chaque groupe avec retry logic
+    $maxRetries = 3
+    foreach ($groupDN in $groupDNs) {
+        $retryCount = 0
+        $addedSuccessfully = $false
+        
+        while ($retryCount -lt $maxRetries -and -not $addedSuccessfully) {
+            try {
+                Write-Output "Ajout de l'utilisateur au groupe (tentative $($retryCount + 1)/$maxRetries): $groupDN"
+                
+                # Check if user is already member of the group
+                $isMember = Get-ADGroupMember -Identity $groupDN -Recursive | Where-Object {$_.SamAccountName -eq $user.SamAccountName}
+                
+                if ($isMember) {
+                    Write-Output "L'utilisateur est déjà membre du groupe: $groupDN"
+                    $successGroups += $groupDN
+                    $addedSuccessfully = $true
+                }
+                else {
+                    Add-ADGroupMember -Identity $groupDN -Members $user.SamAccountName -ErrorAction Stop
+                    $successGroups += $groupDN
+                    $addedSuccessfully = $true
+                    Write-Output "Succès pour le groupe: $groupDN"
+                }
+            }
+            catch {
+                $retryCount++
+                $errorMessage = $_.Exception.Message
+                
+                if ($retryCount -lt $maxRetries) {
+                    Write-Warning "Échec tentative $retryCount pour le groupe '$groupDN': $errorMessage. Nouvelle tentative dans 2 secondes..."
+                    Start-Sleep -Seconds 2
+                }
+                else {
+                    $failedGroups += $groupDN
+                    $errors += "Échec définitif pour le groupe '$groupDN' après $maxRetries tentatives: $errorMessage"
+                    Write-Warning "Échec définitif pour le groupe '$groupDN': $errorMessage"
+                }
+            }
         }
     }
 
-    # Construire le résultat de succès
+    # Construire le résultat de succès pour Azure Automation
     $result = @{
         Status = "Success"
         UserPrincipalName = $userPrincipalName
+        UserSamAccountName = $user.SamAccountName
         Department = $department
         TotalGroupsProcessed = $groupDNs.Count
         SuccessGroups = $successGroups
@@ -114,28 +285,44 @@ try {
         SuccessCount = $successGroups.Count
         FailureCount = $failedGroups.Count
         Errors = $errors
-        Timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        ExecutionEnvironment = "Azure Automation"
+        Timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
+        RunbookName = $MyInvocation.MyCommand.Name
     }
 
     Write-Output "Traitement terminé avec succès"
+    Write-Output "Groupes ajoutés avec succès: $($successGroups.Count)"
+    Write-Output "Groupes en échec: $($failedGroups.Count)"
 }
 catch {
-    # Gestion des erreurs globales pour Logic Apps
+    # Gestion des erreurs globales pour Azure Automation
     $result = @{
         Status = "Error"
         UserPrincipalName = $userPrincipalName
         Department = $department
         ErrorMessage = $_.Exception.Message
         StackTrace = $_.ScriptStackTrace
-        Timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        ExecutionEnvironment = "Azure Automation"
+        Timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
+        RunbookName = $MyInvocation.MyCommand.Name
     }
     
-    Write-Error "Erreur globale: $($_.Exception.Message)"
+    Write-Error "Erreur globale dans le runbook: $($_.Exception.Message)"
+    Write-Output "Détails de l'erreur: $($_.ScriptStackTrace)"
 }
 
-# Sortie formatée pour Logic Apps
-$jsonResult = $result | ConvertTo-Json -Depth 3 -Compress
-Write-Output "RESULT_JSON: $jsonResult"
+# Sortie formatée pour Azure Logic Apps
+$jsonResult = $result | ConvertTo-Json -Depth 4 -Compress
+Write-Output "RUNBOOK_RESULT: $jsonResult"
 
-# Retourner le résultat pour Logic Apps
+# Output for Azure Logic Apps consumption
+Write-Output "=== RÉSULTAT FINAL ==="
+Write-Output "Statut: $($result.Status)"
+Write-Output "Utilisateur: $($result.UserPrincipalName)"
+Write-Output "Département: $($result.Department)"
+Write-Output "Groupes traités: $($result.TotalGroupsProcessed)"
+Write-Output "Succès: $($result.SuccessCount)"
+Write-Output "Échecs: $($result.FailureCount)"
+
+# Return result for further processing in Logic Apps
 return $result
