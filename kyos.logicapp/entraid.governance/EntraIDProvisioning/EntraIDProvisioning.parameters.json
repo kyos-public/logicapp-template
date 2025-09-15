@@ -1,12 +1,21 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "workflows_create_ad_from_snow_name": {
-            "value": "create-ad-from-snow"
+        "LogicAppName": {
+            "value": "wf-provision-entra"
         },
-        "keyVaultName": {
+        "KeyVaultName": {
             "value": "your-keyvault-name"
+        },
+        "SnowUri": {
+            "value": "https://snow.com"
+        },
+        "BulkEndpoint": {
+            "value": "https://graph.microsoft.com/v1.0/servicePrincipals/<spid>/synchronization/jobs/<job>/bulkUpload"
+        },
+        "Domain": {
+            "value": "domain.com"
         }
     }
 }

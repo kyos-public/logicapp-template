@@ -1,0 +1,67 @@
+{
+    "Commun": [
+        "GRP_All_Users",
+        "GRP_Domain_Users",
+        "GRP_Base_Access",
+        "GRP_Standard_Users",
+        "GRP_Common_Resources",
+        "GRP_Basic_Permissions",
+        "DL_All_Employees"
+    ],
+    "Acquisition digitale et Marketing": [
+        "GRP_Marketing_Team",
+        "GRP_Digital_Marketing",
+        "GRP_Marketing_Resources",
+        "GRP_Campaign_Access",
+        "DL_Marketing_Department"
+    ],
+    "Back Office": [
+        "GRP_BackOffice_Team",
+        "GRP_Administrative_Access",
+        "GRP_BackOffice_Resources",
+        "DL_BackOffice_Department"
+    ],
+    "Business Support": [
+        "GRP_Business_Support",
+        "GRP_Support_Team",
+        "GRP_Business_Analysis",
+        "DL_Support_Department"
+    ],
+    "Compliance": [
+        "GRP_Compliance_Team",
+        "GRP_Regulatory_Access",
+        "DL_Compliance_Department"
+    ],
+    "Comptabilité": [
+        "GRP_Accounting_Team",
+        "GRP_Finance_Access",
+        "GRP_Financial_Resources",
+        "DL_Finance_Department"
+    ],
+    "Direction": [
+        "GRP_Management_Team",
+        "GRP_Executive_Access",
+        "GRP_Leadership_Resources",
+        "DL_Management_Department"
+    ],
+    "Informatique": [
+        "GRP_IT_Banking_Apps",
+        "GRP_Application_Team",
+        "DL_IT_Applications"
+    ],
+    "Juridique": [
+        "GRP_Legal_Team",
+        "GRP_Legal_Access",
+        "DL_Legal_Department"
+    ],
+    "Logistique": [
+        "GRP_Logistics_Team",
+        "GRP_CSR_Team",
+        "DL_Logistics_Department"
+    ],
+    "Ressources Humaines": [
+        "GRP_HR_Team",
+        "GRP_Human_Resources",
+        "DL_HR_Department"
+    ]
+}
