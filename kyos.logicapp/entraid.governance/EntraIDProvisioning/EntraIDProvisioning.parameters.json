@@ -2,11 +2,20 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "workflows_lap_create_ad_from_snow_prod_chn_name": {
-            "value": "create-ad-from-snow"
+        "LogicAppName": {
+            "value": "wf-provision-entra"
         },
-        "connections_keyvault_connection_externalid": {
+        "KeyVaultName": {
             "value": "your-keyvault-name"
+        },
+        "SnowUri": {
+            "value": "https://snow.com"
+        },
+        "BulkEndpoint": {
+            "value": "https://graph.microsoft.com/v1.0/servicePrincipals/<spid>/synchronization/jobs/<job>/bulkUpload"
+        },
+        "Domain": {
+            "value": "domain.com"
         }
     }
 }
