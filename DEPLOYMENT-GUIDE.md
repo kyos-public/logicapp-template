@@ -257,9 +257,11 @@ Both references now use proper ARM template functions and parameterized values.
 
 ### Azure Automation Managed Identity Connection Error (MoveUserInDisabledOU)
 
-**Error**: `The workflow connection parameter 'azureautomation' is not valid. The API connection 'azureautomation' is not configured to support managed identity.`
+**Error 1**: `The workflow connection parameter 'azureautomation' is not valid. The API connection 'azureautomation' is not configured to support managed identity.`
 
-**Solution**: The Azure Automation connection in MoveUserInDisabledOU was configured to use managed identity authentication but the connection resource wasn't properly set up. Fixed the connection configuration:
+**Error 2**: `Parameter 'AutomationAccountName' is not allowed on the connection since it was not defined as a connection parameter when the API was registered.`
+
+**Solution**: The Azure Automation connection configuration for managed identity authentication required specific setup. The final working configuration:
 
 ```json
 // ❌ BEFORE - Missing managed identity configuration
@@ -271,7 +273,7 @@ Both references now use proper ARM template functions and parameterized values.
     "parameterValues": {}
 }
 
-// ✅ AFTER - Proper managed identity configuration
+// ❌ INTERMEDIATE - Invalid parameter
 "properties": {
     "displayName": "Azure Automation Connection",
     "api": {
@@ -282,8 +284,23 @@ Both references now use proper ARM template functions and parameterized values.
         "AutomationAccountName": "[parameters('automationAccountName')]"
     }
 }
+
+// ✅ FINAL - Correct managed identity configuration
+"properties": {
+    "displayName": "Azure Automation Connection",
+    "api": {
+        "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'azureautomation')]"
+    },
+    "parameterValueType": "Alternative",
+    "alternativeParameterValues": {}
+}
 ```
 
-This configuration allows the Logic App to authenticate to Azure Automation using its system-assigned managed identity.
+**Key Points**:
+
+- For Azure Automation managed identity connections, use `"parameterValueType": "Alternative"`
+- The `"alternativeParameterValues"` should be an empty object `{}`
+- Do not specify automation account details in the connection - the Logic App references them directly in the action paths
+- The automation account is referenced in the Logic App action paths using ARM template functions
 
 All templates are now ready for cross-tenant deployment! 🎉

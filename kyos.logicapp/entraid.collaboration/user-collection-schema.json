@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Microsoft Graph User Collection Response",
+  "description": "JSON schema for Microsoft Graph API user collection response without OData metadata - optimized for Logic Apps",
+  "type": "object",
+  "properties": {
+    "value": {
+      "type": "array",
+      "description": "Array of user objects returned from Microsoft Graph API",
+      "items": {
+        "$ref": "#/definitions/User"
+      }
+    }
+  },
+  "required": ["value"],
+  "additionalProperties": false,
+  "definitions": {
+    "User": {
+      "type": "object",
+      "description": "Microsoft Graph User object with essential properties for Logic App processing",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user object",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "example": "046bb6ae-9b06-4351-ba08-196089cd3322"
+        },
+        "mail": {
+          "type": ["string", "null"],
+          "description": "Primary email address of the user",
+          "format": "email",
+          "example": "aki@datago.ch"
+        },
+        "userPrincipalName": {
+          "type": "string",
+          "description": "User principal name (UPN) - unique identifier for the user in the directory",
+          "example": "aki_datago.ch#EXT#@KyosSARL.onmicrosoft.com"
+        },
+        "userType": {
+          "type": "string",
+          "description": "Type of user account",
+          "enum": ["Member", "Guest"],
+          "example": "Guest"
+        },
+        "displayName": {
+          "type": ["string", "null"],
+          "description": "Display name of the user",
+          "example": "Alexis Kiefer"
+        }
+      },
+      "required": ["id", "userPrincipalName", "userType"],
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "value": [
+        {
+          "id": "046bb6ae-9b06-4351-ba08-196089cd3322",
+          "mail": "aki@datago.ch",
+          "userPrincipalName": "aki_datago.ch#EXT#@KyosSARL.onmicrosoft.com",
+          "userType": "Member",
+          "displayName": "Alexis Kiefer"
+        },
+        {
+          "id": "455aa917-4cae-4266-9216-ed8408a5e165",
+          "mail": "mcr@datago.ch",
+          "userPrincipalName": "mcr_datago.ch#EXT#@KyosSARL.onmicrosoft.com",
+          "userType": "Guest",
+          "displayName": "Mathias Crochat"
+        }
+      ]
+    }
+  ]
+}
