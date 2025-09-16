@@ -140,9 +140,9 @@ try {
     $groupDNs = @()
 
     # Ajouter les groupes communs (obligatoires pour tous les utilisateurs)
+    # NOTE: The 'Commun' access package is an exception and must be ignored completely
     if ($accessPackageData.Commun) {
-        $groupDNs += $accessPackageData.Commun
-        Write-Output "Ajout de $($accessPackageData.Commun.Count) groupes communs"
+        Write-Output "Le package 'Commun' est présent dans le fichier mais est ignoré par le runbook"
     }
 
     # Ajouter les groupes spécifiques au département si fourni
@@ -230,6 +230,78 @@ try {
     catch {
         throw "Erreur lors de la recherche utilisateur: $($_.Exception.Message)"
     }
+
+    # --- New: Remove user from any full access-packages defined in the generic JSON ---
+    $removedPackages = @()
+    $removedGroups = @()
+
+    try {
+        $genericPath = "$PSScriptRoot\..\Files\access_package_groupe_ad_generic.json"
+        if (Test-Path $genericPath) {
+            Write-Output "Chargement du fichier generic access package: $genericPath"
+            try {
+                $genericContent = Get-Content -Path $genericPath -Raw
+                $genericPackages = $genericContent | ConvertFrom-Json
+                Write-Output "Fichier generic parsé avec succès"
+
+                # Iterate packages (skip Commun)
+                foreach ($pkgName in $genericPackages.PSObject.Properties.Name) {
+                    if ($pkgName -eq 'Commun') { continue }
+
+                    $pkgGroups = $genericPackages.$pkgName
+                    if (-not $pkgGroups) { continue }
+
+                    $isMemberAll = $true
+
+                    foreach ($pkgGroup in $pkgGroups) {
+                        try {
+                            $member = Get-ADGroupMember -Identity $pkgGroup -Recursive -ErrorAction Stop | Where-Object { $_.SamAccountName -eq $user.SamAccountName }
+                            if (-not $member) {
+                                $isMemberAll = $false
+                                break
+                            }
+                        }
+                        catch {
+                            # If group doesn't exist or cannot be queried, treat as not a member for safety
+                            Write-Warning "Impossible d'interroger le groupe '$pkgGroup' pour le package '$pkgName': $($_.Exception.Message)"
+                            $isMemberAll = $false
+                            break
+                        }
+                    }
+
+                    if ($isMemberAll) {
+                        Write-Output "L'utilisateur est membre complet de l'access package '$pkgName' -> suppression de tous les groupes"
+                        $removedThisPackage = @()
+                        foreach ($pkgGroup in $pkgGroups) {
+                            try {
+                                Write-Output "Suppression de l'utilisateur du groupe: $pkgGroup"
+                                Remove-ADGroupMember -Identity $pkgGroup -Members $user.SamAccountName -Confirm:$false -ErrorAction Stop
+                                $removedThisPackage += $pkgGroup
+                                $removedGroups += $pkgGroup
+                            }
+                            catch {
+                                Write-Warning "Échec suppression de $pkgGroup : $($_.Exception.Message)"
+                                # collect error
+                                $errors += "Erreur suppression de $pkgGroup du package $pkgName : $($_.Exception.Message)"
+                            }
+                        }
+
+                        if ($removedThisPackage.Count -gt 0) { $removedPackages += $pkgName }
+                    }
+                }
+            }
+            catch {
+                Write-Warning "Erreur lors du parsing du generic access package: $($_.Exception.Message)"
+            }
+        }
+        else {
+            Write-Output "Fichier generic access package non trouvé: $genericPath"
+        }
+    }
+    catch {
+        Write-Warning "Erreur lors de la vérification/suppression des access packages: $($_.Exception.Message)"
+    }
+
 
     # Tenter d'ajouter l'utilisateur à chaque groupe avec retry logic
     $maxRetries = 3
