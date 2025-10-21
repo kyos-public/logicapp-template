@@ -10,11 +10,11 @@
       "defaultValue": ""
     },
     "authClientId": {
-      "type": "securestring",
+      "type": "string",
       "defaultValue": ""
     },
     "authClientSecret": {
-      "type": "securestring",
+      "type": "string",
       "defaultValue": ""
     }
   },
