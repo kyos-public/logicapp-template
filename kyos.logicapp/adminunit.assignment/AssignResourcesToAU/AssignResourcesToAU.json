@@ -5,6 +5,13 @@
     "logicAppName": {
       "type": "string"
     },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+       "type": "string",
+       "metadata": {
+           "description": "Location for all resources"
+       }
+    },
     "authTenant": {
       "type": "string",
       "defaultValue": ""
