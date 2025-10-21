@@ -41,7 +41,7 @@
             "HTTP_Users": {
               "type": "Http",
               "inputs": {
-                "uri": "https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,displayName",
+                "uri": "https://graph.microsoft.com/v1.0/users?$filter=startswith(displayName,'@{variables('UsersRulesMapping')[0]['Prefix']}')%20or%20endswith(userPrincipalName,'@{variables('UsersRulesMapping')[0]['Pattern']}')&$select=id,userPrincipalName,displayName",
                 "method": "GET",
                 "authentication": {
                   "type": "ActiveDirectoryOAuth",
@@ -462,7 +462,7 @@
             "HTTP_Devices": {
               "type": "Http",
               "inputs": {
-                "uri": "https://graph.microsoft.com/v1.0/groups?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
+                "uri": "https://graph.microsoft.com/v1.0/devices?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
                 "method": "GET",
                 "authentication": {
                   "type": "ActiveDirectoryOAuth",
@@ -527,7 +527,7 @@
                 "HTTP_Check_Devices_Admin_Unit_MemberOf": {
                   "type": "Http",
                   "inputs": {
-                    "uri": "https://graph.microsoft.com/v1.0/devices@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
+                    "uri": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
                     "method": "GET",
                     "authentication": {
                       "type": "ActiveDirectoryOAuth",
@@ -608,7 +608,7 @@
                             "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
                             "method": "POST",
                             "body": {
-                              "@@odata.id": "https://graph.microsoft.com/v1.0/devices@{item()?['id']}"
+                              "@@odata.id": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}"
                             },
                             "authentication": {
                               "type": "ActiveDirectoryOAuth",

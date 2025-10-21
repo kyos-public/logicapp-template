@@ -22,6 +22,7 @@ Before deploying this template to a new tenant, ensure you have:
   - `User.ReadWrite.All` (Microsoft Graph)
   - `Group.ReadWrite.All` (Microsoft Graph)
   - `AdministrativeUnit.ReadWrite.All` (Microsoft Graph)
+  - `Device.ReadWrite.All` (Microsoft Graph)
 
 
 ## Post-Deployment Steps
