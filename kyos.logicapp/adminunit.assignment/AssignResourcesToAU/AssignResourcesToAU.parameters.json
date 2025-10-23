@@ -3,16 +3,37 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "logicAppName": {
-          "value": ""
+            "value": ""
         },
         "authTenant": {
-          "value": ""
+            "value": ""
         },
         "authClientId": {
-          "value": ""
-       },
-       "authClientSecret": {
-         "value": ""
-       }
+            "value": ""
+        },
+        "authClientSecret": {
+            "value": ""
+        },
+        "extensionAttributeKey": {
+            "value": ""
+        },
+        "adminUnitId": {
+            "value": ""
+        },
+        "userPrefix": {
+            "value": ""
+        },
+        "userPattern": {
+            "value": ""
+        },
+        "extensionAttributeValue1": {
+            "value": ""
+        },
+        "extensionAttributeValue2": {
+            "value": ""
+        },
+        "extensionAttributeValue3": {
+            "value": ""
+        }
     }
 }
