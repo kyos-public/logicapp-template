@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "logicAppName": {
-            "value": "mon-logic-app-test"
+            "value": ""
         },
         "authTenant": {
             "value": ""
@@ -18,13 +18,13 @@
             "value": ""
         },
         "adminUnitId": {
-            "value": "votre-admin-unit-id-ici"
+            "value": ""
         },
         "userPrefix": {
-            "value": "FR-"
+            "value": ""
         },
         "userPattern": {
-            "value": "hefr.ch"
+            "value": ""
         },
         "extensionAttributeValue1": {
             "value": ""
