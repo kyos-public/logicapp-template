@@ -81,6 +81,13 @@
       "metadata": {
         "description": "Third extension attribute value to match (optional)"
       }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "get-filtered-users",
+      "metadata": {
+        "description": "Name of the Azure Automation runbook to execute (optional, default: get-filtered-users)"
+      }
     }
   },
   "resources": [
@@ -740,7 +747,7 @@
                         "path": "/subscriptions/@{encodeURIComponent('0d105690-967a-4b09-83bc-718220be00e0')}/resourceGroups/@{encodeURIComponent('rg-hesso-dev-chn')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('aa-hesso-chn')}/jobs",
                         "queries": {
                             "x-ms-api-version": "2015-10-31",
-                            "runbookName": "get-filtered-users",
+                            "runbookName": "[parameters('runbookName')]",
                             "wait": true
                         }
                     },
