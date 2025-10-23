@@ -16,21 +16,21 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Azure AD Tenant ID (optional - leave empty to use managed identity or default authentication)"
+        "description": "Azure AD Tenant ID"
       }
     },
     "authClientId": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Azure AD Application Client ID (optional - leave empty to use managed identity)"
+        "description": "Azure AD Application Client ID)"
       }
     },
     "authClientSecret": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Azure AD Application Client Secret (optional - leave empty to use managed identity)"
+        "description": "Azure AD Application Client Secret"
       }
     },
     "extensionAttributeKey": {
@@ -44,7 +44,7 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "The administrative unit ID where resources will be assigned (optional)"
+        "description": "The administrative unit ID where resources will be assigned"
       }
     },
     "userPrefix": {
@@ -86,7 +86,7 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Name of the Azure Automation runbook to execute (optional, default: get-filtered-users)"
+        "description": "Name of the Azure Automation runbook to execute"
       }
     }
   },
