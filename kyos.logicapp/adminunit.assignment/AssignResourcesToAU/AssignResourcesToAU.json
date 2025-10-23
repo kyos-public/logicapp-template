@@ -109,13 +109,6 @@
       "metadata": {
         "description": "Name of the Azure Automation account"
       }
-    },
-    "runbookContent": {
-      "type": "string",
-      "defaultValue": "param(\n    [Parameter(Mandatory=$false)]\n    [string]$ExtensionAttribute = 'extensionAttribute14',\n    \n    [Parameter(Mandatory=$false)]\n    [string[]]$FilterValues = @()\n)\n\n# Connect to Microsoft Graph using Managed Identity\nConnect-MgGraph -Identity\n\n# Get all users with specified properties\n$users = Get-MgUser -All -Property 'Id,DisplayName,Mail,UserPrincipalName,ExtensionAttribute1,ExtensionAttribute2,ExtensionAttribute3,ExtensionAttribute4,ExtensionAttribute5,ExtensionAttribute6,ExtensionAttribute7,ExtensionAttribute8,ExtensionAttribute9,ExtensionAttribute10,ExtensionAttribute11,ExtensionAttribute12,ExtensionAttribute13,ExtensionAttribute14,ExtensionAttribute15'\n\n# Filter users based on extension attribute if filter values provided\nif ($FilterValues.Count -gt 0) {\n    $filteredUsers = $users | Where-Object { $FilterValues -contains $_.$ExtensionAttribute }\n} else {\n    $filteredUsers = $users\n}\n\n# Convert to JSON and output\n$result = $filteredUsers | Select-Object Id, DisplayName, Mail, UserPrincipalName, $ExtensionAttribute\n$result | ConvertTo-Json -Compress",
-      "metadata": {
-        "description": "PowerShell script content for the runbook"
-      }
     }
   },
   "resources": [
@@ -124,9 +117,6 @@
       "apiVersion": "2016-06-01",
       "name": "azureautomation",
       "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
       "properties": {
         "displayName": "Azure Automation Connection",
         "api": {
@@ -143,8 +133,7 @@
       "name": "[parameters('logicAppName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Web/connections', 'azureautomation')]",
-        "[resourceId('Microsoft.Automation/automationAccounts/runbooks', parameters('automationAccountName'), parameters('runbookName'))]"
+        "[resourceId('Microsoft.Web/connections', 'azureautomation')]"
       ],
       "properties": {
         "definition": {
@@ -856,36 +845,6 @@
                     }
                 }
             }
-        }
-      }
-    },
-    {
-      "type": "Microsoft.Automation/automationAccounts",
-      "apiVersion": "2015-10-31",
-      "name": "[parameters('automationAccountName')]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "sku": {
-          "name": "Basic"
-        }
-      }
-    },
-    {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2015-10-31",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "properties": {
-        "runbookType": "PowerShell",
-        "logVerbose": false,
-        "logProgress": false,
-        "description": "PowerShell runbook to get filtered users based on extension attributes",
-        "publishContentLink": {
-          "uri": "[concat('data:text/plain;base64,', base64(parameters('runbookContent')))]",
-          "version": "1.0.0.0"
         }
       }
     }
