@@ -37,6 +37,15 @@
         },
         "runbookName": {
             "value": ""
+        },
+        "subscriptionId": {
+            "value": ""
+        },
+        "resourceGroupName": {
+            "value": ""
+        },
+        "automationAccountName": {
+            "value": ""
         }
     }
 }

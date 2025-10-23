@@ -88,14 +88,53 @@
       "metadata": {
         "description": "Name of the Azure Automation runbook to execute"
       }
+    },
+    "subscriptionId": {
+      "type": "string",
+      "defaultValue": "[subscription().subscriptionId]",
+      "metadata": {
+        "description": "Azure subscription ID containing the automation account"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "M365-TenantManagement",
+      "metadata": {
+        "description": "Resource group name containing the automation account"
+      }
+    },
+    "automationAccountName": {
+      "type": "string",
+      "defaultValue": "HES-M365-AzureAutomationAccount",
+      "metadata": {
+        "description": "Name of the Azure Automation account"
+      }
     }
   },
   "resources": [
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "azureautomation",
+      "location": "[parameters('location')]",
+      "properties": {
+        "displayName": "Azure Automation Connection",
+        "api": {
+          "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'azureautomation')]"
+        },
+        "parameterValues": {
+          "subscriptionId": "[parameters('subscriptionId')]"
+        }
+      }
+    },
     {
       "type": "Microsoft.Logic/workflows",
       "apiVersion": "2016-06-01",
       "name": "[parameters('logicAppName')]",
       "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', 'azureautomation')]"
+      ],
       "properties": {
         "definition": {
             "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
@@ -744,7 +783,7 @@
                             }
                         },
                         "method": "put",
-                        "path": "/subscriptions/@{encodeURIComponent(subscription().subscriptionId)}/resourceGroups/@{encodeURIComponent('M365-TenantManagement')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('HES-M365-AzureAutomationAccount')}/jobs",
+                        "path": "/subscriptions/@{encodeURIComponent('[parameters('subscriptionId')]')}/resourceGroups/@{encodeURIComponent('[parameters('resourceGroupName')]')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('[parameters('automationAccountName')]')}/jobs",
                         "queries": {
                             "x-ms-api-version": "2015-10-31",
                             "runbookName": "[parameters('runbookName')]",
@@ -766,7 +805,7 @@
                             }
                         },
                         "method": "get",
-                        "path": "/subscriptions/@{encodeURIComponent('subscription().subscriptionId')}/resourceGroups/@{encodeURIComponent('M365-TenantManagement')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('HES-M365-AzureAutomationAccount')}/jobs/@{encodeURIComponent(body('Create_job_Get_Filtered_Users')?['properties']?['jobId'])}/output",
+                        "path": "/subscriptions/@{encodeURIComponent('[parameters('subscriptionId')]')}/resourceGroups/@{encodeURIComponent('[parameters('resourceGroupName')]')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('[parameters('automationAccountName')]')}/jobs/@{encodeURIComponent(body('Create_job_Get_Filtered_Users')?['properties']?['jobId'])}/output",
                         "queries": {
                             "x-ms-api-version": "2015-10-31"
                         }
@@ -798,7 +837,13 @@
         "parameters": {
             "$connections": {
                 "type": "Object",
-                "value": {}
+                "value": {
+                    "azureautomation": {
+                        "connectionId": "[resourceId('Microsoft.Web/connections', 'azureautomation')]",
+                        "connectionName": "azureautomation",
+                        "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('location'), 'azureautomation')]"
+                    }
+                }
             }
         }
       }
