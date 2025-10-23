@@ -27,6 +27,11 @@ Before deploying this template to a new tenant, ensure you have:
 
 ## Post-Deployment Steps
 
+After the build of the logic app :
+- Change the extensionAttribute on UsersRulesMapping variable to match with the real extensions attribute of the entity
+- Adapt all parameters and variables with the current entity
+- Change the runbook on the create job action to select the runbook of the dedicated entity
+
 
 ## Troubleshooting Connection Issues
 
