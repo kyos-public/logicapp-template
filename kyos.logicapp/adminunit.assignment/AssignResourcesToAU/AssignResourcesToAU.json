@@ -30,6 +30,13 @@
       "metadata": {
         "description": "The extension attribute key to use for user filtering (e.g., extensionAttribute14, extensionAttribute10, extensionAttribute7)"
       }
+    },
+    "adminUnitId": {
+      "type": "string",
+      "defaultValue": "renseigner l'id de l'admin unit",
+      "metadata": {
+        "description": "The administrative unit ID where resources will be assigned"
+      }
     }
   },
   "resources": [
@@ -265,7 +272,7 @@
                                         "extensionAttribute14_1": "RORG-HEFR#1",
                                         "extensionAttribute14_2": "RORG-HEFR#2",
                                         "extensionAttribute14_3": "RORG-HEFR#3",
-                                        "adminUnitId": "d2c4c6a4-fddd-4658-9812-967d01b548af"
+                                        "adminUnitId": "[parameters('adminUnitId')]"
                                     }
                                 ]
                             }
@@ -283,7 +290,7 @@
                                 "value": [
                                     {
                                         "Prefix": "FR-",
-                                        "adminUnitId": "d2c4c6a4-fddd-4658-9812-967d01b548af"
+                                        "adminUnitId": "[parameters('adminUnitId')]"
                                     }
                                 ]
                             }
