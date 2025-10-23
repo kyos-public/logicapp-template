@@ -23,6 +23,13 @@
     "authClientSecret": {
       "type": "string",
       "defaultValue": ""
+    },
+    "extensionAttributeKey": {
+      "type": "string",
+      "defaultValue": "extensionAttribute14",
+      "metadata": {
+        "description": "The extension attribute key to use for user filtering (e.g., extensionAttribute14, extensionAttribute10, extensionAttribute7)"
+      }
     }
   },
   "resources": [
@@ -33,639 +40,708 @@
       "location": "[parameters('location')]",
       "properties": {
         "definition": {
-          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-          "contentVersion": "1.0.0.0",
-          "triggers": {
-            "Recurrence": {
-              "type": "Recurrence",
-              "recurrence": {
-                "interval": 3,
-                "frequency": "Hour"
-              }
-            }
-          },
-          "actions": {
-            "HTTP_Users": {
-              "type": "Http",
-              "inputs": {
-                "uri": "https://graph.microsoft.com/v1.0/users?$filter=startswith(displayName,'@{variables('UsersRulesMapping')[0]['Prefix']}')%20or%20endswith(userPrincipalName,'@{variables('UsersRulesMapping')[0]['Pattern']}')&$select=id,userPrincipalName,displayName",
-                "method": "GET",
-                "authentication": {
-                  "type": "ActiveDirectoryOAuth",
-                  "tenant": "[parameters('authTenant')]",
-                  "audience": "https://graph.microsoft.com",
-                  "clientId": "[parameters('authClientId')]",
-                  "secret": "[parameters('authClientSecret')]"
+            "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+            "contentVersion": "1.0.0.0",
+            "triggers": {
+                "Recurrence": {
+                    "type": "Recurrence",
+                    "recurrence": {
+                        "interval": 1,
+                        "frequency": "Day",
+                        "timeZone": "Romance Standard Time",
+                        "schedule": {
+                            "hours": [
+                                22
+                            ],
+                            "minutes": [
+                                0
+                            ]
+                        }
+                    }
                 }
-              },
-              "runAfter": {
-                "Initialize_UsersRulesMapping": [
-                  "Succeeded"
-                ]
-              },
-              "runtimeConfiguration": {
-                "contentTransfer": {
-                  "transferMode": "Chunked"
-                }
-              }
             },
-            "Parse_JSON_Users": {
-              "type": "ParseJson",
-              "inputs": {
-                "content": "@body('HTTP_Users')",
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "@@odata.context": {
-                      "type": "string"
+            "actions": {
+                "Parse_JSON_Users": {
+                    "type": "ParseJson",
+                    "inputs": {
+                        "content": "@outputs('Compose_Runbook_Output')",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "displayName": {
+                                        "type": "string"
+                                    },
+                                    "mail": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "id",
+                                    "displayName",
+                                    "mail"
+                                ],
+                                "additionalProperties": true
+                            }
+                        }
                     },
-                    "value": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "userPrincipalName": {
-                            "type": "string"
-                          },
-                          "displayName": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "userPrincipalName",
-                          "displayName"
+                    "runAfter": {
+                        "Compose_Runbook_Output": [
+                            "Succeeded"
                         ]
-                      }
                     }
-                  }
-                }
-              },
-              "runAfter": {
-                "HTTP_Users": [
-                  "Succeeded"
-                ]
-              }
-            },
-            "For_each": {
-              "type": "Foreach",
-              "foreach": "@body('Parse_JSON_Users')?['value']",
-              "actions": {
-                "HTTP_Check_AdminUnit_MemberOf": {
-                  "type": "Http",
-                  "inputs": {
-                    "uri": "https://graph.microsoft.com/v1.0/users/@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
-                    "method": "GET",
-                    "authentication": {
-                      "type": "ActiveDirectoryOAuth",
-                      "tenant": "[parameters('authTenant')]",
-                      "audience": "https://graph.microsoft.com",
-                      "clientId": "[parameters('authClientId')]",
-                      "secret": "[parameters('authClientSecret')]"
-                    }
-                  },
-                  "runtimeConfiguration": {
-                    "contentTransfer": {
-                      "transferMode": "Chunked"
-                    }
-                  }
                 },
-                "Parse_JSON_AdminUnit_MemberOf": {
-                  "type": "ParseJson",
-                  "inputs": {
-                    "content": "@body('HTTP_Check_AdminUnit_MemberOf')",
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "@@odata.context": {
-                          "type": "string"
+                "For_each": {
+                    "type": "Foreach",
+                    "foreach": "@body('Parse_JSON_Users')",
+                    "actions": {
+                        "HTTP_Check_AdminUnit_MemberOf": {
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/users/@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
+                                "method": "GET",
+                                "authentication": {
+                                  "type": "ActiveDirectoryOAuth",
+                                  "tenant": "[parameters('authTenant')]",
+                                  "audience": "https://graph.microsoft.com",
+                                  "clientId": "[parameters('authClientId')]",
+                                  "secret": "[parameters('authClientSecret')]"
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                },
+                                "paginationPolicy": {
+                                    "minimumItemCount": 50000
+                                }
+                            }
                         },
-                        "value": {
-                          "type": "array",
-                          "items": {
+                        "Parse_JSON_AdminUnit_MemberOf": {
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_Check_AdminUnit_MemberOf')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "@@odata.context": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "displayName": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "HTTP_Check_AdminUnit_MemberOf": [
+                                    "Succeeded"
+                                ]
+                            }
+                        },
+                        "Condition": {
+                            "type": "If",
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@length(body('HTTP_Check_AdminUnit_MemberOf')?['value'])",
+                                            0
+                                        ]
+                                    }
+                                ]
+                            },
+                            "actions": {
+                                "Condition_2": {
+                                    "type": "If",
+                                    "expression": {
+                                        "or": [
+                                            {
+                                                "startsWith": [
+                                                    "@item()?['displayName']",
+                                                    "@variables('UsersRulesMapping')[0]['Prefix']"
+                                                ]
+                                            },
+                                            {
+                                                "endsWith": [
+                                                    "@item()?['userPrincipalName']",
+                                                    "@variables('UsersRulesMapping')[0]['Pattern']"
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@item()[parameters('extensionAttributeKey')]",
+                                                    "@variables('UsersRulesMapping')[0]['extensionAttribute14_1']"
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@item()[parameters('extensionAttributeKey')]",
+                                                    "@variables('UsersRulesMapping')[0]['extensionAttribute14_2']"
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@item()[parameters('extensionAttributeKey')]",
+                                                    "@variables('UsersRulesMapping')[0]['extensionAttribute14_3']"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "actions": {
+                                        "HTTP_Post_User_to_Admin_Unit": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('UsersRulesMapping')[0]['adminUnitId']}/members/$ref",
+                                                "method": "POST",
+                                                "body": {
+                                                    "@@odata.id": "https://graph.microsoft.com/v1.0/users/@{item()?['id']}"
+                                                },
+                                                "authentication": {
+                                                  "type": "ActiveDirectoryOAuth",
+                                                  "tenant": "[parameters('authTenant')]",
+                                                  "audience": "https://graph.microsoft.com",
+                                                  "clientId": "[parameters('authClientId')]",
+                                                  "secret": "[parameters('authClientSecret')]"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "else": {
+                                        "actions": {}
+                                    }
+                                }
+                            },
+                            "else": {
+                                "actions": {}
+                            },
+                            "runAfter": {
+                                "Parse_JSON_AdminUnit_MemberOf": [
+                                    "Succeeded"
+                                ]
+                            }
+                        }
+                    },
+                    "runAfter": {
+                        "Parse_JSON_Users": [
+                            "Succeeded"
+                        ]
+                    }
+                },
+                "Initialize_UsersRulesMapping": {
+                    "type": "InitializeVariable",
+                    "inputs": {
+                        "variables": [
+                            {
+                                "name": "UsersRulesMapping",
+                                "type": "array",
+                                "value": [
+                                    {
+                                        "Prefix": "FR-",
+                                        "Pattern": "hefr.ch",
+                                        "extensionAttribute14_1": "RORG-HEFR#1",
+                                        "extensionAttribute14_2": "RORG-HEFR#2",
+                                        "extensionAttribute14_3": "RORG-HEFR#3",
+                                        "adminUnitId": "d2c4c6a4-fddd-4658-9812-967d01b548af"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "runAfter": {}
+                },
+                "Initialize_Prefix": {
+                    "type": "InitializeVariable",
+                    "inputs": {
+                        "variables": [
+                            {
+                                "name": "PrefixRule",
+                                "type": "array",
+                                "value": [
+                                    {
+                                        "Prefix": "FR-",
+                                        "adminUnitId": "d2c4c6a4-fddd-4658-9812-967d01b548af"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "runAfter": {}
+                },
+                "HTTP_Groups": {
+                    "type": "Http",
+                    "inputs": {
+                        "uri": "https://graph.microsoft.com/v1.0/groups?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
+                        "method": "GET",
+                        "authentication": {
+                          "type": "ActiveDirectoryOAuth",
+                          "tenant": "[parameters('authTenant')]",
+                          "audience": "https://graph.microsoft.com",
+                          "clientId": "[parameters('authClientId')]",
+                          "secret": "[parameters('authClientSecret')]"
+                        }
+                    },
+                    "runAfter": {
+                        "Initialize_Prefix": [
+                            "Succeeded"
+                        ]
+                    },
+                    "runtimeConfiguration": {
+                        "contentTransfer": {
+                            "transferMode": "Chunked"
+                        },
+                        "paginationPolicy": {
+                            "minimumItemCount": 50000
+                        }
+                    }
+                },
+                "Parse_JSON_Groups": {
+                    "type": "ParseJson",
+                    "inputs": {
+                        "content": "@body('HTTP_Groups')",
+                        "schema": {
                             "type": "object",
                             "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "displayName": {
-                                "type": "string"
-                              }
+                                "@@odata.context": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "string"
+                                            },
+                                            "displayName": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "id",
+                                            "displayName"
+                                        ]
+                                    }
+                                }
                             }
-                          }
                         }
-                      }
-                    }
-                  },
-                  "runAfter": {
-                    "HTTP_Check_AdminUnit_MemberOf": [
-                      "Succeeded"
-                    ]
-                  }
-                },
-                "Condition": {
-                  "type": "If",
-                  "expression": {
-                    "and": [
-                      {
-                        "equals": [
-                          "@length(body('HTTP_Check_AdminUnit_MemberOf')?['value'])",
-                          0
-                        ]
-                      }
-                    ]
-                  },
-                  "actions": {
-                    "Condition_2": {
-                      "type": "If",
-                      "expression": {
-                        "or": [
-                          {
-                            "startsWith": [
-                              "@item()?['displayName']",
-                              "@variables('UsersRulesMapping')[0]['Prefix']"
-                            ]
-                          },
-                          {
-                            "endsWith": [
-                              "@item()?['userPrincipalName']",
-                              "@variables('UsersRulesMapping')[0]['Pattern']"
-                            ]
-                          }
-                        ]
-                      },
-                      "actions": {
-                        "HTTP_Post_User_to_Admin_Unit": {
-                          "type": "Http",
-                          "inputs": {
-                            "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('UsersRulesMapping')[0]['adminUnitId']}/members/$ref",
-                            "method": "POST",
-                            "body": {
-                              "@@odata.id": "https://graph.microsoft.com/v1.0/users/@{item()?['id']}"
-                            },
-                            "authentication": {
-                              "type": "ActiveDirectoryOAuth",
-                              "tenant": "[parameters('authTenant')]",
-                              "audience": "https://graph.microsoft.com",
-                              "clientId": "[parameters('authClientId')]",
-                              "secret": "[parameters('authClientSecret')]"
-                            }
-                          },
-                          "runtimeConfiguration": {
-                            "contentTransfer": {
-                              "transferMode": "Chunked"
-                            }
-                          }
-                        }
-                      },
-                      "else": {
-                        "actions": {}
-                      }
-                    }
-                  },
-                  "else": {
-                    "actions": {}
-                  },
-                  "runAfter": {
-                    "Parse_JSON_AdminUnit_MemberOf": [
-                      "Succeeded"
-                    ]
-                  }
-                }
-              },
-              "runAfter": {
-                "Parse_JSON_Users": [
-                  "Succeeded"
-                ]
-              }
-            },
-            "Initialize_UsersRulesMapping": {
-              "type": "InitializeVariable",
-              "inputs": {
-                "variables": [
-                  {
-                    "name": "UsersRulesMapping",
-                    "type": "array",
-                    "value": [
-                      {
-                        "Prefix": "FR-",
-                        "Pattern": ".hefr.ch",
-                        "adminUnitId": "d2c4c6a4-fddd-4658-9812-967d01b548af"
-                      }
-                    ]
-                  }
-                ]
-              },
-              "runAfter": {}
-            },
-            "Initialize_Prefix": {
-              "type": "InitializeVariable",
-              "inputs": {
-                "variables": [
-                  {
-                    "name": "PrefixRule",
-                    "type": "array",
-                    "value": [
-                      {
-                        "Prefix": "FR-",
-                        "adminUnitId": "d2c4c6a4-fddd-4658-9812-967d01b548af"
-                      }
-                    ]
-                  }
-                ]
-              },
-              "runAfter": {}
-            },
-            "HTTP_Groups": {
-              "type": "Http",
-              "inputs": {
-                "uri": "https://graph.microsoft.com/v1.0/groups?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
-                "method": "GET",
-                "authentication": {
-                  "type": "ActiveDirectoryOAuth",
-                  "tenant": "[parameters('authTenant')]",
-                  "audience": "https://graph.microsoft.com",
-                  "clientId": "[parameters('authClientId')]",
-                  "secret": "[parameters('authClientSecret')]"
-                }
-              },
-              "runAfter": {
-                "Initialize_Prefix": [
-                  "Succeeded"
-                ]
-              },
-              "runtimeConfiguration": {
-                "contentTransfer": {
-                  "transferMode": "Chunked"
-                }
-              }
-            },
-            "Parse_JSON_Groups": {
-              "type": "ParseJson",
-              "inputs": {
-                "content": "@body('HTTP_Groups')",
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "@@odata.context": {
-                      "type": "string"
                     },
-                    "value": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "displayName": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "displayName"
+                    "runAfter": {
+                        "HTTP_Groups": [
+                            "Succeeded"
                         ]
-                      }
                     }
-                  }
-                }
-              },
-              "runAfter": {
-                "HTTP_Groups": [
-                  "SUCCEEDED"
-                ]
-              }
-            },
-            "For_each_Groups": {
-              "type": "Foreach",
-              "foreach": "@body('Parse_JSON_Groups')?['value']",
-              "actions": {
-                "HTTP_Check_Groups_Admin_Unit_MemberOf": {
-                  "type": "Http",
-                  "inputs": {
-                    "uri": "https://graph.microsoft.com/v1.0/groups/@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
-                    "method": "GET",
-                    "authentication": {
-                      "type": "ActiveDirectoryOAuth",
-                      "tenant": "[parameters('authTenant')]",
-                      "audience": "https://graph.microsoft.com",
-                      "clientId": "[parameters('authClientId')]",
-                      "secret": "[parameters('authClientSecret')]"
-                    }
-                  },
-                  "runtimeConfiguration": {
-                    "contentTransfer": {
-                      "transferMode": "Chunked"
-                    }
-                  }
                 },
-                "Parse_JSON_Groups_AdminUnit_MemberOf": {
-                  "type": "ParseJson",
-                  "inputs": {
-                    "content": "@body('HTTP_Check_Groups_Admin_Unit_MemberOf')",
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "@@odata.context": {
-                          "type": "string"
+                "For_each_Groups": {
+                    "type": "Foreach",
+                    "foreach": "@body('Parse_JSON_Groups')?['value']",
+                    "actions": {
+                        "HTTP_Check_Groups_Admin_Unit_MemberOf": {
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/groups/@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
+                                "method": "GET",
+                                "authentication": {
+                                  "type": "ActiveDirectoryOAuth",
+                                  "tenant": "[parameters('authTenant')]",
+                                  "audience": "https://graph.microsoft.com",
+                                  "clientId": "[parameters('authClientId')]",
+                                  "secret": "[parameters('authClientSecret')]"
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                },
+                                "paginationPolicy": {
+                                    "minimumItemCount": 50000
+                                }
+                            }
                         },
-                        "value": {
-                          "type": "array",
-                          "items": {
+                        "Parse_JSON_Groups_AdminUnit_MemberOf": {
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_Check_Groups_Admin_Unit_MemberOf')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "@@odata.context": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "displayName": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "HTTP_Check_Groups_Admin_Unit_MemberOf": [
+                                    "Succeeded"
+                                ]
+                            }
+                        },
+                        "Condition_Groups": {
+                            "type": "If",
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@length(body('Parse_JSON_Groups_AdminUnit_MemberOf')?['value'])",
+                                            0
+                                        ]
+                                    }
+                                ]
+                            },
+                            "actions": {
+                                "Condition_Groups_2": {
+                                    "type": "If",
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "startsWith": [
+                                                    "@item()?['displayName']",
+                                                    "@variables('PrefixRule')[0]['Prefix']"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "actions": {
+                                        "HTTP_Post_Group_to_Admin_Unit": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
+                                                "method": "POST",
+                                                "body": {
+                                                    "@@odata.id": "https://graph.microsoft.com/v1.0/groups/@{item()?['id']}"
+                                                },
+                                                "authentication": {
+                                                  "type": "ActiveDirectoryOAuth",
+                                                  "tenant": "[parameters('authTenant')]",
+                                                  "audience": "https://graph.microsoft.com",
+                                                  "clientId": "[parameters('authClientId')]",
+                                                  "secret": "[parameters('authClientSecret')]"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "else": {
+                                        "actions": {}
+                                    }
+                                }
+                            },
+                            "else": {
+                                "actions": {}
+                            },
+                            "runAfter": {
+                                "Parse_JSON_Groups_AdminUnit_MemberOf": [
+                                    "Succeeded"
+                                ]
+                            }
+                        }
+                    },
+                    "runAfter": {
+                        "Parse_JSON_Groups": [
+                            "Succeeded"
+                        ]
+                    }
+                },
+                "HTTP_Devices": {
+                    "type": "Http",
+                    "inputs": {
+                        "uri": "https://graph.microsoft.com/v1.0/devices?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
+                        "method": "GET",
+                        "authentication": {
+                          "type": "ActiveDirectoryOAuth",
+                          "tenant": "[parameters('authTenant')]",
+                          "audience": "https://graph.microsoft.com",
+                          "clientId": "[parameters('authClientId')]",
+                          "secret": "[parameters('authClientSecret')]"
+                        }
+                    },
+                    "runAfter": {
+                        "Initialize_Prefix": [
+                            "Succeeded"
+                        ]
+                    },
+                    "runtimeConfiguration": {
+                        "contentTransfer": {
+                            "transferMode": "Chunked"
+                        },
+                        "paginationPolicy": {
+                            "minimumItemCount": 50000
+                        }
+                    }
+                },
+                "Parse_JSON_Devices": {
+                    "type": "ParseJson",
+                    "inputs": {
+                        "content": "@body('HTTP_Devices')",
+                        "schema": {
                             "type": "object",
                             "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "displayName": {
-                                "type": "string"
-                              }
+                                "@@odata.context": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "string"
+                                            },
+                                            "displayName": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "id",
+                                            "displayName"
+                                        ]
+                                    }
+                                }
                             }
-                          }
                         }
-                      }
-                    }
-                  },
-                  "runAfter": {
-                    "HTTP_Check_Groups_Admin_Unit_MemberOf": [
-                      "SUCCEEDED"
-                    ]
-                  }
-                },
-                "Condition_Groups": {
-                  "type": "If",
-                  "expression": {
-                    "and": [
-                      {
-                        "equals": [
-                          "@length(body('Parse_JSON_Groups_AdminUnit_MemberOf')?['value'])",
-                          0
-                        ]
-                      }
-                    ]
-                  },
-                  "actions": {
-                    "Condition_Groups_2": {
-                      "type": "If",
-                      "expression": {
-                        "and": [
-                          {
-                            "startsWith": [
-                              "@item()?['displayName']",
-                              "@variables('PrefixRule')[0]['Prefix']"
-                            ]
-                          }
-                        ]
-                      },
-                      "actions": {
-                        "HTTP_Post_Group_to_Admin_Unit": {
-                          "type": "Http",
-                          "inputs": {
-                            "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
-                            "method": "POST",
-                            "body": {
-                              "@@odata.id": "https://graph.microsoft.com/v1.0/groups/@{item()?['id']}"
-                            },
-                            "authentication": {
-                              "type": "ActiveDirectoryOAuth",
-                              "tenant": "[parameters('authTenant')]",
-                              "audience": "https://graph.microsoft.com",
-                              "clientId": "[parameters('authClientId')]",
-                              "secret": "[parameters('authClientSecret')]"
-                            }
-                          },
-                          "runtimeConfiguration": {
-                            "contentTransfer": {
-                              "transferMode": "Chunked"
-                            }
-                          }
-                        }
-                      },
-                      "else": {
-                        "actions": {}
-                      }
-                    }
-                  },
-                  "else": {
-                    "actions": {}
-                  },
-                  "runAfter": {
-                    "Parse_JSON_Groups_AdminUnit_MemberOf": [
-                      "SUCCEEDED"
-                    ]
-                  }
-                }
-              },
-              "runAfter": {
-                "Parse_JSON_Groups": [
-                  "SUCCEEDED"
-                ]
-              }
-            },
-            "HTTP_Devices": {
-              "type": "Http",
-              "inputs": {
-                "uri": "https://graph.microsoft.com/v1.0/devices?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
-                "method": "GET",
-                "authentication": {
-                  "type": "ActiveDirectoryOAuth",
-                  "tenant": "[parameters('authTenant')]",
-                  "audience": "https://graph.microsoft.com",
-                  "clientId": "[parameters('authClientId')]",
-                  "secret": "[parameters('authClientSecret')]"
-                }
-              },
-              "runAfter": {
-                "Initialize_Prefix": [
-                  "SUCCEEDED"
-                ]
-              },
-              "runtimeConfiguration": {
-                "contentTransfer": {
-                  "transferMode": "Chunked"
-                }
-              }
-            },
-            "Parse_JSON_Devices": {
-              "type": "ParseJson",
-              "inputs": {
-                "content": "@body('HTTP_Devices')",
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "@@odata.context": {
-                      "type": "string"
                     },
-                    "value": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "displayName": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "displayName"
+                    "runAfter": {
+                        "HTTP_Devices": [
+                            "Succeeded"
                         ]
-                      }
                     }
-                  }
-                }
-              },
-              "runAfter": {
-                "HTTP_Devices": [
-                  "SUCCEEDED"
-                ]
-              }
-            },
-            "For_each_Devices": {
-              "type": "Foreach",
-              "foreach": "@body('Parse_JSON_Devices')?['value']",
-              "actions": {
-                "HTTP_Check_Devices_Admin_Unit_MemberOf": {
-                  "type": "Http",
-                  "inputs": {
-                    "uri": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
-                    "method": "GET",
-                    "authentication": {
-                      "type": "ActiveDirectoryOAuth",
-                      "tenant": "[parameters('authTenant')]",
-                      "audience": "https://graph.microsoft.com",
-                      "clientId": "[parameters('authClientId')]",
-                      "secret": "[parameters('authClientSecret')]"
-                    }
-                  },
-                  "runtimeConfiguration": {
-                    "contentTransfer": {
-                      "transferMode": "Chunked"
-                    }
-                  }
                 },
-                "Parse_JSON_Devices_AdminUnit_MemberOf": {
-                  "type": "ParseJson",
-                  "inputs": {
-                    "content": "@body('HTTP_Check_Devices_Admin_Unit_MemberOf')",
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "@@odata.context": {
-                          "type": "string"
-                        },
-                        "value": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "displayName": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "runAfter": {
-                    "HTTP_Check_Devices_Admin_Unit_MemberOf": [
-                      "SUCCEEDED"
-                    ]
-                  }
-                },
-                "Condition_Devices": {
-                  "type": "If",
-                  "expression": {
-                    "and": [
-                      {
-                        "equals": [
-                          "@length(body('Parse_JSON_Devices')?['value'])",
-                          0
-                        ]
-                      }
-                    ]
-                  },
-                  "actions": {
-                    "Condition_Devices_2": {
-                      "type": "If",
-                      "expression": {
-                        "and": [
-                          {
-                            "startsWith": [
-                              "@item()?['displayName']",
-                              "@variables('PrefixRule')[0]['Prefix']"
-                            ]
-                          }
-                        ]
-                      },
-                      "actions": {
-                        "HTTP_Post_Device_to_AdminUnit": {
-                          "type": "Http",
-                          "inputs": {
-                            "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
-                            "method": "POST",
-                            "body": {
-                              "@@odata.id": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}"
+                "For_each_Devices": {
+                    "type": "Foreach",
+                    "foreach": "@body('Parse_JSON_Devices')?['value']",
+                    "actions": {
+                        "HTTP_Check_Devices_Admin_Unit_MemberOf": {
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "https://graph.microsoft.com/v1.0/devices@{item()?['id']}/memberOf/microsoft.graph.administrativeUnit?$select=id.displayName",
+                                "method": "GET",
+                                "authentication": {
+                                  "type": "ActiveDirectoryOAuth",
+                                  "tenant": "[parameters('authTenant')]",
+                                  "audience": "https://graph.microsoft.com",
+                                  "clientId": "[parameters('authClientId')]",
+                                  "secret": "[parameters('authClientSecret')]"
+                                }
                             },
-                            "authentication": {
-                              "type": "ActiveDirectoryOAuth",
-                              "tenant": "[parameters('authTenant')]",
-                              "audience": "https://graph.microsoft.com",
-                              "clientId": "[parameters('authClientId')]",
-                              "secret": "[parameters('authClientSecret')]"
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                },
+                                "paginationPolicy": {
+                                    "minimumItemCount": 50000
+                                }
                             }
-                          },
-                          "runtimeConfiguration": {
-                            "contentTransfer": {
-                              "transferMode": "Chunked"
+                        },
+                        "Parse_JSON_Devices_AdminUnit_MemberOf": {
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_Check_Devices_Admin_Unit_MemberOf')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "@@odata.context": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "displayName": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "HTTP_Check_Devices_Admin_Unit_MemberOf": [
+                                    "Succeeded"
+                                ]
                             }
-                          }
+                        },
+                        "Condition_Devices": {
+                            "type": "If",
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@length(body('Parse_JSON_Devices')?['value'])",
+                                            0
+                                        ]
+                                    }
+                                ]
+                            },
+                            "actions": {
+                                "Condition_Devices_2": {
+                                    "type": "If",
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "startsWith": [
+                                                    "@item()?['displayName']",
+                                                    "@variables('PrefixRule')[0]['Prefix']"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "actions": {
+                                        "HTTP_Post_Device_to_AdminUnit": {
+                                            "type": "Http",
+                                            "inputs": {
+                                                "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
+                                                "method": "POST",
+                                                "body": {
+                                                    "@@odata.id": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}"
+                                                },
+                                                "authentication": {
+                                                  "type": "ActiveDirectoryOAuth",
+                                                  "tenant": "[parameters('authTenant')]",
+                                                  "audience": "https://graph.microsoft.com",
+                                                  "clientId": "[parameters('authClientId')]",
+                                                  "secret": "[parameters('authClientSecret')]"
+                                                }
+                                            },
+                                            "runtimeConfiguration": {
+                                                "contentTransfer": {
+                                                    "transferMode": "Chunked"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "else": {
+                                        "actions": {}
+                                    }
+                                }
+                            },
+                            "else": {
+                                "actions": {}
+                            },
+                            "runAfter": {
+                                "Parse_JSON_Devices_AdminUnit_MemberOf": [
+                                    "Succeeded"
+                                ]
+                            }
                         }
-                      },
-                      "else": {
-                        "actions": {}
-                      }
+                    },
+                    "runAfter": {
+                        "Parse_JSON_Devices": [
+                            "Succeeded"
+                        ]
                     }
-                  },
-                  "else": {
-                    "actions": {}
-                  },
-                  "runAfter": {
-                    "Parse_JSON_Devices_AdminUnit_MemberOf": [
-                      "SUCCEEDED"
-                    ]
-                  }
+                },
+                "Create_job_Get_Filtered_Users": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                        "host": {
+                            "connection": {
+                                "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                            }
+                        },
+                        "method": "put",
+                        "path": "/subscriptions/@{encodeURIComponent('0d105690-967a-4b09-83bc-718220be00e0')}/resourceGroups/@{encodeURIComponent('rg-hesso-dev-chn')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('aa-hesso-chn')}/jobs",
+                        "queries": {
+                            "x-ms-api-version": "2015-10-31",
+                            "runbookName": "get-filtered-users",
+                            "wait": true
+                        }
+                    },
+                    "runAfter": {
+                        "Initialize_UsersRulesMapping": [
+                            "Succeeded"
+                        ]
+                    }
+                },
+                "Get_job_output": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                        "host": {
+                            "connection": {
+                                "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                            }
+                        },
+                        "method": "get",
+                        "path": "/subscriptions/@{encodeURIComponent('0d105690-967a-4b09-83bc-718220be00e0')}/resourceGroups/@{encodeURIComponent('rg-hesso-dev-chn')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('aa-hesso-chn')}/jobs/@{encodeURIComponent(body('Create_job_Get_Filtered_Users')?['properties']?['jobId'])}/output",
+                        "queries": {
+                            "x-ms-api-version": "2015-10-31"
+                        }
+                    },
+                    "runAfter": {
+                        "Create_job_Get_Filtered_Users": [
+                            "Succeeded"
+                        ]
+                    }
+                },
+                "Compose_Runbook_Output": {
+                    "type": "Compose",
+                    "inputs": "@json(concat('[', string(body('Get_job_output')), ']'))",
+                    "runAfter": {
+                        "Get_job_output": [
+                            "Succeeded"
+                        ]
+                    }
                 }
-              },
-              "runAfter": {
-                "Parse_JSON_Devices": [
-                  "SUCCEEDED"
-                ]
-              }
+            },
+            "outputs": {},
+            "parameters": {
+                "$connections": {
+                    "type": "Object",
+                    "defaultValue": {}
+                }
             }
-          },
-          "outputs": {},
-          "parameters": {
-            "$connections": {
-              "type": "Object",
-              "defaultValue": {}
-            }
-          }
         },
         "parameters": {
-          "$connections": {
-            "value": {}
-          }
+            "$connections": {
+                "type": "Object",
+                "value": {}
+            }
         }
       }
     }
