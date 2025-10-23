@@ -46,6 +46,12 @@
         },
         "automationAccountName": {
             "value": ""
+        },
+        "connectionName": {
+            "value": "existingAzureAutomationConnection"
+        },
+        "useExistingConnection": {
+            "value": true
         }
     }
 }
