@@ -45,37 +45,15 @@ Before deploying this template, ensure you have:
 - `automationAccountName`: Name of the Azure Automation account
 
 ### Connection Parameters
-- `connectionName`: Name of the Azure Automation connection (default: "kyos-azure-automation-connection")
-- `useExistingConnection`: Whether to reuse an existing connection (default: false)
+- `connectionName`: Name of the existing Azure Automation connection (default: "azureautomation")
 
-## Deployment Options
-
-### Option 1: Create New Connection
-Set `useExistingConnection` to `false` and provide Automation account details:
-```json
-{
-  "useExistingConnection": {"value": false},
-  "connectionName": {"value": "my-new-connection"},
-  "subscriptionId": {"value": "your-subscription-id"},
-  "resourceGroupName": {"value": "your-resource-group"},
-  "automationAccountName": {"value": "your-automation-account"}
-}
-```
-
-### Option 2: Reuse Existing Connection
-Set `useExistingConnection` to `true` and provide the existing connection name:
-```json
-{
-  "useExistingConnection": {"value": true},
-  "connectionName": {"value": "existing-connection-name"}
-}
-```
+**Note**: This template is designed to use an existing Azure Automation connection. Make sure the connection exists in your resource group before deploying.
 
 ## Minimal Deployment
-For a minimal deployment, only provide:
+For a minimal deployment, provide:
 - Authentication parameters (tenant, client ID, secret)
 - User filtering parameters (prefix, pattern)
-- Connection details (if creating new) or connection name (if reusing)
+- Connection name (must exist in the target resource group)
 
 
 ## Post-Deployment Steps
