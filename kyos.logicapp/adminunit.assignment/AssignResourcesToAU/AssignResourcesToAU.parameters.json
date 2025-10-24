@@ -23,22 +23,7 @@
         "userPrefix": {
             "value": ""
         },
-        "userPattern": {
-            "value": ""
-        },
-        "extensionAttributeValue1": {
-            "value": ""
-        },
-        "extensionAttributeValue2": {
-            "value": ""
-        },
-        "extensionAttributeValue3": {
-            "value": ""
-        },
         "runbookName": {
-            "value": ""
-        },
-        "subscriptionId": {
             "value": ""
         },
         "resourceGroupName": {

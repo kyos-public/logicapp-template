@@ -54,46 +54,11 @@
         "description": "Prefix for filtering users (optional, default: FR-)"
       }
     },
-    "userPattern": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Domain pattern for filtering users (optional, default: hefr.ch)"
-      }
-    },
-    "extensionAttributeValue1": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "First extension attribute value to match (optional)"
-      }
-    },
-    "extensionAttributeValue2": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Second extension attribute value to match (optional)"
-      }
-    },
-    "extensionAttributeValue3": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Third extension attribute value to match (optional)"
-      }
-    },
     "runbookName": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
         "description": "Name of the Azure Automation runbook to execute"
-      }
-    },
-    "subscriptionId": {
-      "type": "string",
-      "defaultValue": "[subscription().subscriptionId]",
-      "metadata": {
-        "description": "Azure subscription ID containing the automation account"
       }
     },
     "resourceGroupName": {
@@ -167,13 +132,18 @@
                                             "string",
                                             "null"
                                         ]
+                                    },
+                                    "@{parameters('extensionAttributeKey')}": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
                                     }
                                 },
                                 "required": [
                                     "id",
                                     "displayName"
-                                ],
-                                "additionalProperties": true
+                                ]
                             }
                         }
                     },
@@ -255,68 +225,26 @@
                                 ]
                             },
                             "actions": {
-                                "Condition_2": {
-                                    "type": "If",
-                                    "expression": {
-                                        "or": [
-                                            {
-                                                "startsWith": [
-                                                    "@item()?['displayName']",
-                                                    "@variables('UsersRulesMapping')[0]['Prefix']"
-                                                ]
-                                            },
-                                            {
-                                                "endsWith": [
-                                                    "@item()?['mail']",
-                                                    "@variables('UsersRulesMapping')[0]['Pattern']"
-                                                ]
-                                            },
-                                            {
-                                                "equals": [
-                                                    "@item()?[parameters('extensionAttributeKey')]",
-                                                    "@variables('UsersRulesMapping')[0]['extensionAttributeValue1']"
-                                                ]
-                                            },
-                                            {
-                                                "equals": [
-                                                    "@item()?[parameters('extensionAttributeKey')]",
-                                                    "@variables('UsersRulesMapping')[0]['extensionAttributeValue2']"
-                                                ]
-                                            },
-                                            {
-                                                "equals": [
-                                                    "@item()?[parameters('extensionAttributeKey')]",
-                                                    "@variables('UsersRulesMapping')[0]['extensionAttributeValue3']"
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "actions": {
-                                        "HTTP_Post_User_to_Admin_Unit": {
-                                            "type": "Http",
-                                            "inputs": {
-                                                "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('UsersRulesMapping')[0]['adminUnitId']}/members/$ref",
-                                                "method": "POST",
-                                                "body": {
-                                                    "@@odata.id": "https://graph.microsoft.com/v1.0/users/@{item()?['id']}"
-                                                },
-                                                "authentication": {
-                                                    "type": "ActiveDirectoryOAuth",
-                                                    "tenant": "[parameters('authTenant')]",
-                                                    "audience": "https://graph.microsoft.com",
-                                                    "clientId": "[parameters('authClientId')]",
-                                                    "secret": "[parameters('authClientSecret')]"
-                                                }
-                                            },
-                                            "runtimeConfiguration": {
-                                                "contentTransfer": {
-                                                    "transferMode": "Chunked"
-                                                }
-                                            }
+                                "HTTP_Post_User_to_Admin_Unit": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{parameters('adminUnitId')}/members/$ref",
+                                        "method": "POST",
+                                        "body": {
+                                            "@@odata.id": "https://graph.microsoft.com/v1.0/users/@{item()?['id']}"
+                                        },
+                                        "authentication": {
+                                            "type": "ActiveDirectoryOAuth",
+                                            "tenant": "[parameters('authTenant')]",
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "[parameters('authClientId')]",
+                                            "secret": "[parameters('authClientSecret')]"
                                         }
                                     },
-                                    "else": {
-                                        "actions": {}
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
                                     }
                                 }
                             },
@@ -336,50 +264,10 @@
                         ]
                     }
                 },
-                "Initialize_UsersRulesMapping": {
-                    "type": "InitializeVariable",
-                    "inputs": {
-                        "variables": [
-                            {
-                                "name": "UsersRulesMapping",
-                                "type": "array",
-                                "value": [
-                                    {
-                                        "Prefix": "[parameters('userPrefix')]",
-                                        "Pattern": "[parameters('userPattern')]",
-                                        "extensionAttributeValue1": "[parameters('extensionAttributeValue1')]",
-                                        "extensionAttributeValue2": "[parameters('extensionAttributeValue2')]",
-                                        "extensionAttributeValue3": "[parameters('extensionAttributeValue3')]",
-                                        "adminUnitId": "[parameters('adminUnitId')]"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-                    "runAfter": {}
-                },
-                "Initialize_Prefix": {
-                    "type": "InitializeVariable",
-                    "inputs": {
-                        "variables": [
-                            {
-                                "name": "PrefixRule",
-                                "type": "array",
-                                "value": [
-                                    {
-                                        "Prefix": "[parameters('userPrefix')]",
-                                        "adminUnitId": "[parameters('adminUnitId')]"
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-                    "runAfter": {}
-                },
                 "HTTP_Groups": {
                     "type": "Http",
                     "inputs": {
-                        "uri": "https://graph.microsoft.com/v1.0/groups?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
+                        "uri": "https://graph.microsoft.com/v1.0/groups?$filter=startswith(displayName,'@{parameters('userPrefix')}')&$select=id,displayName",
                         "method": "GET",
                         "authentication": {
                             "type": "ActiveDirectoryOAuth",
@@ -389,11 +277,7 @@
                             "secret": "[parameters('authClientSecret')]"
                         }
                     },
-                    "runAfter": {
-                        "Initialize_Prefix": [
-                            "Succeeded"
-                        ]
-                    },
+                    "runAfter": {},
                     "runtimeConfiguration": {
                         "contentTransfer": {
                             "transferMode": "Chunked"
@@ -512,44 +396,26 @@
                                 ]
                             },
                             "actions": {
-                                "Condition_Groups_2": {
-                                    "type": "If",
-                                    "expression": {
-                                        "and": [
-                                            {
-                                                "startsWith": [
-                                                    "@item()?['displayName']",
-                                                    "@variables('PrefixRule')[0]['Prefix']"
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "actions": {
-                                        "HTTP_Post_Group_to_Admin_Unit": {
-                                            "type": "Http",
-                                            "inputs": {
-                                                "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
-                                                "method": "POST",
-                                                "body": {
-                                                    "@@odata.id": "https://graph.microsoft.com/v1.0/groups/@{item()?['id']}"
-                                                },
-                                                "authentication": {
-                                                    "type": "ActiveDirectoryOAuth",
-                                                    "tenant": "[parameters('authTenant')]",
-                                                    "audience": "https://graph.microsoft.com",
-                                                    "clientId": "[parameters('authClientId')]",
-                                                    "secret": "[parameters('authClientSecret')]"
-                                                }
-                                            },
-                                            "runtimeConfiguration": {
-                                                "contentTransfer": {
-                                                    "transferMode": "Chunked"
-                                                }
-                                            }
+                                "HTTP_Post_Group_to_Admin_Unit": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{parameters('adminUnitId')}/members/$ref",
+                                        "method": "POST",
+                                        "body": {
+                                            "@@odata.id": "https://graph.microsoft.com/v1.0/groups/@{item()?['id']}"
+                                        },
+                                        "authentication": {
+                                            "type": "ActiveDirectoryOAuth",
+                                            "tenant": "[parameters('authTenant')]",
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "[parameters('authClientId')]",
+                                            "secret": "[parameters('authClientSecret')]"
                                         }
                                     },
-                                    "else": {
-                                        "actions": {}
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
                                     }
                                 }
                             },
@@ -572,7 +438,7 @@
                 "HTTP_Devices": {
                     "type": "Http",
                     "inputs": {
-                        "uri": "https://graph.microsoft.com/v1.0/devices?$filter=startswith(displayName,'@{variables('PrefixRule')[0]['Prefix']}')&$select=id,displayName",
+                        "uri": "https://graph.microsoft.com/v1.0/devices?$filter=startswith(displayName,'@{parameters('userPrefix')}')&$select=id,displayName",
                         "method": "GET",
                         "authentication": {
                             "type": "ActiveDirectoryOAuth",
@@ -582,11 +448,7 @@
                             "secret": "[parameters('authClientSecret')]"
                         }
                     },
-                    "runAfter": {
-                        "Initialize_Prefix": [
-                            "Succeeded"
-                        ]
-                    },
+                    "runAfter": {},
                     "runtimeConfiguration": {
                         "contentTransfer": {
                             "transferMode": "Chunked"
@@ -705,44 +567,26 @@
                                 ]
                             },
                             "actions": {
-                                "Condition_Devices_2": {
-                                    "type": "If",
-                                    "expression": {
-                                        "and": [
-                                            {
-                                                "startsWith": [
-                                                    "@item()?['displayName']",
-                                                    "@variables('PrefixRule')[0]['Prefix']"
-                                                ]
-                                            }
-                                        ]
-                                    },
-                                    "actions": {
-                                        "HTTP_Post_Device_to_AdminUnit": {
-                                            "type": "Http",
-                                            "inputs": {
-                                                "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{variables('PrefixRule')[0]['adminUnitId']}/members/$ref",
-                                                "method": "POST",
-                                                "body": {
-                                                    "@@odata.id": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}"
-                                                },
-                                                "authentication": {
-                                                    "type": "ActiveDirectoryOAuth",
-                                                    "tenant": "[parameters('authTenant')]",
-                                                    "audience": "https://graph.microsoft.com",
-                                                    "clientId": "[parameters('authClientId')]",
-                                                    "secret": "[parameters('authClientSecret')]"
-                                                }
-                                            },
-                                            "runtimeConfiguration": {
-                                                "contentTransfer": {
-                                                    "transferMode": "Chunked"
-                                                }
-                                            }
+                                "HTTP_Post_Device_to_AdminUnit": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "https://graph.microsoft.com/beta/administrativeUnits/@{parameters('adminUnitId')}/members/$ref",
+                                        "method": "POST",
+                                        "body": {
+                                            "@@odata.id": "https://graph.microsoft.com/v1.0/devices/@{item()?['id']}"
+                                        },
+                                        "authentication": {
+                                            "type": "ActiveDirectoryOAuth",
+                                            "tenant": "[parameters('authTenant')]",
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "[parameters('authClientId')]",
+                                            "secret": "[parameters('authClientSecret')]"
                                         }
                                     },
-                                    "else": {
-                                        "actions": {}
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
                                     }
                                 }
                             },
@@ -787,11 +631,7 @@
                             "wait": true
                         }
                     },
-                    "runAfter": {
-                        "Initialize_UsersRulesMapping": [
-                            "Succeeded"
-                        ]
-                    }
+                    "runAfter": {}
                 },
                 "Get_job_output": {
                     "type": "ApiConnection",
@@ -819,6 +659,34 @@
                 "$connections": {
                     "type": "Object",
                     "defaultValue": {}
+                },
+                "userPrefix": {
+                    "type": "String",
+                    "defaultValue": ""
+                },
+                "adminUnitId": {
+                    "type": "String",
+                    "defaultValue": ""
+                },
+                "extensionAttributeKey": {
+                    "type": "String",
+                    "defaultValue": "extensionAttribute14"
+                },
+                "runbookName": {
+                    "type": "String",
+                    "defaultValue": ""
+                },
+                "resourceGroupName": {
+                    "type": "String",
+                    "defaultValue": "M365-TenantManagement"
+                },
+                "automationAccountName": {
+                    "type": "String",
+                    "defaultValue": "HES-M365-AzureAutomationAccount"
+                },
+                "subscriptionId": {
+                    "type": "String",
+                    "defaultValue": ""
                 }
             }
         },
@@ -832,6 +700,34 @@
                         "connectionName": "[parameters('connectionName')]"
                     }
                 }
+            },
+            "userPrefix": {
+                "type": "String",
+                "value": "[parameters('userPrefix')]"
+            },
+            "adminUnitId": {
+                "type": "String",
+                "value": "[parameters('adminUnitId')]"
+            },
+            "extensionAttributeKey": {
+                "type": "String",
+                "value": "[parameters('extensionAttributeKey')]"
+            },
+            "runbookName": {
+                "type": "String",
+                "value": "[parameters('runbookName')]"
+            },
+            "resourceGroupName": {
+                "type": "String",
+                "value": "[parameters('resourceGroupName')]"
+            },
+            "automationAccountName": {
+                "type": "String",
+                "value": "[parameters('automationAccountName')]"
+            },
+            "subscriptionId": {
+                "type": "String",
+                "value": "[subscription().subscriptionId]"
             }
         }
       }

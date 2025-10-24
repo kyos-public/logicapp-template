@@ -12,6 +12,20 @@ languages:
 
 [![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fkyos-public%2Flogicapp-template%2Fmain%2Fkyos.logicapp%2Fadminunit.assignment%2FAssignResourcesToAU%2FAssignResourcesToAU.json)
 
+## Overview
+
+This Logic App template creates a workflow that automatically assigns users, groups, and devices to Azure AD Administrative Units. The template features a **parallel execution architecture** where user, group, and device assignments are processed simultaneously for optimal performance.
+
+## Architecture
+
+The workflow operates in three parallel branches after fetching user data from Azure Automation:
+
+1. **Users Branch**: Processes users returned by the runbook
+2. **Groups Branch**: Fetches and processes groups matching the user prefix
+3. **Devices Branch**: Fetches and processes devices matching the user prefix
+
+All three branches execute in parallel, improving overall execution time and efficiency.
+
 ## Prerequisites
 
 Before deploying this template, ensure you have:
@@ -32,22 +46,17 @@ Before deploying this template, ensure you have:
 - `authTenant`: Azure AD tenant ID
 - `authClientId`: App registration client ID
 - `authClientSecret`: App registration client secret
-- `userPrefix`: Prefix for user filtering
-- `userPattern`: Pattern for user filtering (e.g., "*@domain.com")
+- `adminUnitId`: Target Administrative Unit ID
+- `userPrefix`: Prefix for filtering users, groups, and devices
 
 ### Optional Parameters (with defaults)
-- `extensionAttributeKey`: Extension attribute to check (default: "extensionAttribute1")
-- `adminUnitId`: Target admin unit ID (default: empty)
-- `extensionAttributeValue1/2/3`: Values to match against (defaults: "value1", "value2", "value3")
-- `runbookName`: Azure Automation runbook name (default: "AssignUserToAdminUnit")
-- `subscriptionId`: Azure subscription ID for Automation account
-- `resourceGroupName`: Resource group containing Automation account
-- `automationAccountName`: Name of the Azure Automation account
-
-### Connection Parameters
+- `userPattern`: Pattern for user filtering (default: empty)
+- `runbookName`: Azure Automation runbook name (default: empty)
+- `resourceGroupName`: Resource group containing Automation account (default: "M365-TenantManagement")
+- `automationAccountName`: Name of the Azure Automation account (default: "HES-M365-AzureAutomationAccount")
 - `connectionName`: Name of the existing Azure Automation connection (default: "azureautomation")
 
-**Note**: This template is designed to use an existing Azure Automation connection. Make sure the connection exists in your resource group before deploying.
+**Note**: This template always uses an existing Azure Automation connection. Ensure the connection exists in your resource group before deploying.
 
 ## Minimal Deployment
 For a minimal deployment, provide:
