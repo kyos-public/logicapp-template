@@ -2,8 +2,8 @@ param (
     [Parameter(Mandatory=$true)]
     [string]$userPrincipalName,
 
-    [Parameter(Mandatory=$false)]
-    [string]$department = "",
+    [Parameter(Mandatory=$true)]
+    [string]$accessPackages = "",
 
     [Parameter(Mandatory=$false)]
     [string]$accessPackageJson = "",
@@ -42,14 +42,16 @@ function Get-AccessPackageData {
     
     # Priority 1: Use provided JSON string parameter
     if (-not [string]::IsNullOrEmpty($JsonString)) {
-        Write-Output "Utilisation du JSON fourni en paramètre"
+        # Write-Output "Utilisation du JSON fourni en paramètre"
         try {
-            $accessPackageData = $JsonString | ConvertFrom-Json
-            Write-Output "JSON paramètre parsé avec succès"
+            $decodedJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($JsonString))
+            $accessPackageData = $decodedJson | ConvertFrom-Json
+            
+            #Write-Output "JSON paramètre parsé avec succès"
             return $accessPackageData
         }
         catch {
-            Write-Warning "Erreur lors du parsing du JSON fourni en paramètre: $($_.Exception.Message)"
+            Write-Warning "Erreur lors du parsing du JSON fourni en paramètre: $_"
         }
     }
     
@@ -139,19 +141,26 @@ try {
     # Construire la liste des groupes à assigner
     $groupDNs = @()
 
+    # Construire la liste des AccessPackage source
+    $sourceAccessPackageList = $accessPackages.Split(";")
+
     # Ajouter les groupes communs (obligatoires pour tous les utilisateurs)
     if ($accessPackageData.Commun) {
         $groupDNs += $accessPackageData.Commun
         Write-Output "Ajout de $($accessPackageData.Commun.Count) groupes communs"
     }
 
-    # Ajouter les groupes spécifiques au département si fourni
-    if (-not [string]::IsNullOrEmpty($department) -and $accessPackageData.PSObject.Properties.Name -contains $department) {
-        $departmentGroups = $accessPackageData.$department
-        $groupDNs += $departmentGroups
-        Write-Output "Ajout de $($departmentGroups.Count) groupes pour le département: $department"
-    } elseif (-not [string]::IsNullOrEmpty($department)) {
-        Write-Warning "Département '$department' non trouvé dans le fichier access package"
+    # Traitement des groupes associés à chaque AccessPackage
+    foreach($accessPackage in $sourceAccessPackageList){
+
+        # Ajouter les groupes spécifiques à l'access package si fourni
+        if (-not [string]::IsNullOrEmpty($accessPackage) -and $accessPackageData.PSObject.Properties.Name -contains $accessPackage) {
+            $accessPackageGroups = $accessPackageData.$accessPackage
+            $groupDNs += $accessPackageGroups
+            Write-Output "Ajout de $($accessPackageGroups.Count) groupes pour le département: $accessPackage"
+        } elseif (-not [string]::IsNullOrEmpty($accessPackage)) {
+            Write-Warning "Département '$accessPackage' non trouvé dans le fichier access package"
+        }
     }
 
     Write-Output "Total de $($groupDNs.Count) groupes à traiter"
@@ -278,7 +287,7 @@ try {
         Status = "Success"
         UserPrincipalName = $userPrincipalName
         UserSamAccountName = $user.SamAccountName
-        Department = $department
+        AccessPackages = $acessPackages
         TotalGroupsProcessed = $groupDNs.Count
         SuccessGroups = $successGroups
         FailedGroups = $failedGroups
@@ -299,7 +308,7 @@ catch {
     $result = @{
         Status = "Error"
         UserPrincipalName = $userPrincipalName
-        Department = $department
+        AccessPackages = $acessPackages
         ErrorMessage = $_.Exception.Message
         StackTrace = $_.ScriptStackTrace
         ExecutionEnvironment = "Azure Automation"
@@ -319,7 +328,7 @@ Write-Output "RUNBOOK_RESULT: $jsonResult"
 Write-Output "=== RÉSULTAT FINAL ==="
 Write-Output "Statut: $($result.Status)"
 Write-Output "Utilisateur: $($result.UserPrincipalName)"
-Write-Output "Département: $($result.Department)"
+Write-Output "Département: $($result.AcessPackages)"
 Write-Output "Groupes traités: $($result.TotalGroupsProcessed)"
 Write-Output "Succès: $($result.SuccessCount)"
 Write-Output "Échecs: $($result.FailureCount)"
