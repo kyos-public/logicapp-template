@@ -2,8 +2,8 @@ param (
     [Parameter(Mandatory=$true)]
     [string]$userPrincipalName,
 
-    [Parameter(Mandatory=$true)]
-    [string]$accessPackages = "",
+    [Parameter(Mandatory=$false)]
+    [string]$accessPackages,
 
     [Parameter(Mandatory=$false)]
     [string]$accessPackageJson = "",
@@ -31,6 +31,8 @@ $successGroups = @()
 $failedGroups = @()
 $errors = @()
 
+$accessPackageList = $accessPackages.Split(";")
+
 # Function to get access package data from various sources
 function Get-AccessPackageData {
     param(
@@ -42,7 +44,7 @@ function Get-AccessPackageData {
     
     # Priority 1: Use provided JSON string parameter
     if (-not [string]::IsNullOrEmpty($JsonString)) {
-        # Write-Output "Utilisation du JSON fourni en paramètre"
+        #Write-Output "Utilisation du JSON fourni en paramètre"
         try {
             $decodedJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($JsonString))
             $accessPackageData = $decodedJson | ConvertFrom-Json
@@ -51,7 +53,7 @@ function Get-AccessPackageData {
             return $accessPackageData
         }
         catch {
-            Write-Warning "Erreur lors du parsing du JSON fourni en paramètre: $_"
+            Write-Warning "Erreur lors du parsing du JSON fourni en paramètre: $($_.Exception.Message)"
         }
     }
     
@@ -132,6 +134,7 @@ try {
     try {
         $accessPackageData = Get-AccessPackageData -JsonString $accessPackageJson -FilePath $accessPackageFilePath
         Write-Output "Données d'access package chargées avec succès"
+        Write-Output "$accessPackageData"
     }
     catch {
         Write-Error "Erreur critique: $($_.Exception.Message)"
@@ -141,19 +144,14 @@ try {
     # Construire la liste des groupes à assigner
     $groupDNs = @()
 
-    # Construire la liste des AccessPackage source
-    $sourceAccessPackageList = $accessPackages.Split(";")
-
     # Ajouter les groupes communs (obligatoires pour tous les utilisateurs)
+    # NOTE: The 'Commun' access package is an exception and must be ignored completely
     if ($accessPackageData.Commun) {
-        $groupDNs += $accessPackageData.Commun
-        Write-Output "Ajout de $($accessPackageData.Commun.Count) groupes communs"
+        Write-Output "Le package 'Commun' est présent dans le fichier mais est ignoré par le runbook"
     }
 
-    # Traitement des groupes associés à chaque AccessPackage
-    foreach($accessPackage in $sourceAccessPackageList){
-
-        # Ajouter les groupes spécifiques à l'access package si fourni
+    foreach ($accessPackage in $accessPackageList){
+        # Ajouter les groupes spécifiques au département si fourni
         if (-not [string]::IsNullOrEmpty($accessPackage) -and $accessPackageData.PSObject.Properties.Name -contains $accessPackage) {
             $accessPackageGroups = $accessPackageData.$accessPackage
             $groupDNs += $accessPackageGroups
@@ -162,7 +160,6 @@ try {
             Write-Warning "Département '$accessPackage' non trouvé dans le fichier access package"
         }
     }
-
     Write-Output "Total de $($groupDNs.Count) groupes à traiter"
 
     # Convertir les noms de groupes en DNs complets si nécessaire
@@ -240,6 +237,63 @@ try {
         throw "Erreur lors de la recherche utilisateur: $($_.Exception.Message)"
     }
 
+    # --- New: Remove user from any full access-packages defined in the generic JSON ---
+    $removedPackages = @()
+    $removedGroups = @()
+
+    try {
+
+        # Iterate packages (skip Commun)
+        foreach ($pkgName in $accessPackageData.PSObject.Properties.Name) {
+            if ($pkgName -eq 'Commun') { continue }
+
+            $pkgGroups = $accessPackageData.$pkgName
+            if (-not $pkgGroups) { continue }
+
+            $isMemberAll = $true
+
+            foreach ($pkgGroup in $pkgGroups) {
+                try {
+                    $member = Get-ADGroupMember -Identity $pkgGroup -Recursive -ErrorAction Stop | Where-Object { $_.SamAccountName -eq $user.SamAccountName }
+                    if (-not $member) {
+                        $isMemberAll = $false
+                        break
+                    }
+                }
+                catch {
+                    # If group doesn't exist or cannot be queried, treat as not a member for safety
+                    Write-Warning "Impossible d'interroger le groupe '$pkgGroup' pour le package '$pkgName': $($_.Exception.Message)"
+                    $isMemberAll = $false
+                    break
+                }
+            }
+
+            if ($isMemberAll) {
+                Write-Output "L'utilisateur est membre complet de l'access package '$pkgName' -> suppression de tous les groupes"
+                $removedThisPackage = @()
+                foreach ($pkgGroup in $pkgGroups) {
+                    try {
+                        Write-Output "Suppression de l'utilisateur du groupe: $pkgGroup"
+                        Remove-ADGroupMember -Identity $pkgGroup -Members $user.SamAccountName -Confirm:$false -ErrorAction Stop
+                        $removedThisPackage += $pkgGroup
+                        $removedGroups += $pkgGroup
+                    }
+                    catch {
+                        Write-Warning "Échec suppression de $pkgGroup : $($_.Exception.Message)"
+                        # collect error
+                        $errors += "Erreur suppression de $pkgGroup du package $pkgName : $($_.Exception.Message)"
+                    }
+                }
+
+                if ($removedThisPackage.Count -gt 0) { $removedPackages += $pkgName }
+            }
+        }
+    }
+    catch {
+        Write-Warning "Erreur lors de la vérification/suppression des access packages: $($_.Exception.Message)"
+    }
+
+
     # Tenter d'ajouter l'utilisateur à chaque groupe avec retry logic
     $maxRetries = 3
     foreach ($groupDN in $groupDNs) {
@@ -287,7 +341,7 @@ try {
         Status = "Success"
         UserPrincipalName = $userPrincipalName
         UserSamAccountName = $user.SamAccountName
-        AccessPackages = $acessPackages
+        AccessPackages = $accessPackages
         TotalGroupsProcessed = $groupDNs.Count
         SuccessGroups = $successGroups
         FailedGroups = $failedGroups
@@ -308,7 +362,7 @@ catch {
     $result = @{
         Status = "Error"
         UserPrincipalName = $userPrincipalName
-        AccessPackages = $acessPackages
+        AccessPackages = $accessPackages
         ErrorMessage = $_.Exception.Message
         StackTrace = $_.ScriptStackTrace
         ExecutionEnvironment = "Azure Automation"
@@ -328,7 +382,7 @@ Write-Output "RUNBOOK_RESULT: $jsonResult"
 Write-Output "=== RÉSULTAT FINAL ==="
 Write-Output "Statut: $($result.Status)"
 Write-Output "Utilisateur: $($result.UserPrincipalName)"
-Write-Output "Département: $($result.AcessPackages)"
+Write-Output "Département: $($result.AccessPackages)"
 Write-Output "Groupes traités: $($result.TotalGroupsProcessed)"
 Write-Output "Succès: $($result.SuccessCount)"
 Write-Output "Échecs: $($result.FailureCount)"
