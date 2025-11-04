@@ -3,7 +3,7 @@ param (
     [string]$userPrincipalName,
 
     [Parameter(Mandatory=$false)]
-    [string]$department = "",
+    [string]$accessPackages,
 
     [Parameter(Mandatory=$false)]
     [string]$accessPackageJson = "",
@@ -31,6 +31,8 @@ $successGroups = @()
 $failedGroups = @()
 $errors = @()
 
+$accessPackageList = $accessPackages.Split(";")
+
 # Function to get access package data from various sources
 function Get-AccessPackageData {
     param(
@@ -42,10 +44,16 @@ function Get-AccessPackageData {
     
     # Priority 1: Use provided JSON string parameter
     if (-not [string]::IsNullOrEmpty($JsonString)) {
-        Write-Output "Utilisation du JSON fourni en paramètre"
+        #Write-Output "Utilisation du JSON fourni en paramètre"
         try {
-            $accessPackageData = $JsonString | ConvertFrom-Json
-            Write-Output "JSON paramètre parsé avec succès"
+            #$decodedJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($JsonString))
+            #$accessPackageData = $decodedJson | ConvertFrom-Json
+
+            # TMP OVERRIDE FOR QUAL
+            $str = '{"Développement Commercial et Support": ["T_GRP_developpementcommercialetsupport"], "Crédits": ["T_GRP_credits"],"Salle des marchés": ["T_GRP_salledesmarches"],"Solutions patrimoniales": ["T_GRP_solutionspatrimoniales"],"Risk Management": ["T_GRP_riskmanagement"],"Ressources Humaines": ["T_GRP_ressourceshumaines"],"Organisation": ["T_GRP_organisation"],"Logistique et Organisation - Services Généraux et Réception Genève": ["T_GRP_logistiqueetorganisationservicesgenerauxetreceptiongeneve"],"Informatique - Infrastructure": ["T_GRP_informatiqueinfrastructure"],"Logistique et Organisation - Logistique et RSE": ["T_GRP_logistiqueetorganisationlogistiqueetrse"],"Juridique": ["T_GRP_juridique"],"Investissements": ["T_GRP_investissements"],"Informatique - Développement IT": ["T_GRP_informatiquedeveloppementit"],"Informatique - Applications Bancaires": ["T_GRP_informatiqueapplicationsbancaires"],"Information Management et Analysis (MIS)": ["T_GRP_informationmanagementetanalysis(mis)"],"Gérants indépendants": ["T_GRP_gerantsindependants"],"Gestion institutionnelle": ["T_GRP_gestioninstitutionnelle"],"Gestion Yverdon-les-Bains": ["T_GRP_gestionyverdonlesbains"],"Gestion Nyon": ["T_GRP_gestionnyon"],"Gestion Neuchâtel": ["T_GRP_gestionneuchatel"],"Gestion Lausanne": ["T_GRP_gestionlausanne"],"Gestion La Chaux-de-Fonds": ["T_GRP_gestionlachauxdefonds"],"Fichier central / Documentation clientèle": ["T_GRP_fichiercentraldocumentationclientele"],"Comptabilité / Finance": ["T_GRP_comptabilitefinance"],"Compliance": ["T_GRP_compliance"],"Commun": ["T_GRP_commun"],"Business Support": ["T_GRP_businesssupport"],"Business Risk Management": ["T_GRP_businessriskmanagement"],"Back office": ["T_GRP_backoffice"],"Acquisition digitale et Marketing": ["T_GRP_acquisitiondigitaleetmarketing"],"Solutions d''Investissement": ["T_GRP_solutionsdinvestissement"],"Gestion Genève": ["T_GRP_gestiongeneve"],"Fiscalité opérationnelle": ["T_GRP_fiscaliteoperationnelle"],"Direction": ["T_GRP_direction"]}'
+            $accessPackageData = $str | ConvertFrom-Json
+            
+            #Write-Output "JSON paramètre parsé avec succès"
             return $accessPackageData
         }
         catch {
@@ -130,6 +138,7 @@ try {
     try {
         $accessPackageData = Get-AccessPackageData -JsonString $accessPackageJson -FilePath $accessPackageFilePath
         Write-Output "Données d'access package chargées avec succès"
+        Write-Output "$accessPackageData"
     }
     catch {
         Write-Error "Erreur critique: $($_.Exception.Message)"
@@ -145,15 +154,16 @@ try {
         Write-Output "Le package 'Commun' est présent dans le fichier mais est ignoré par le runbook"
     }
 
-    # Ajouter les groupes spécifiques au département si fourni
-    if (-not [string]::IsNullOrEmpty($department) -and $accessPackageData.PSObject.Properties.Name -contains $department) {
-        $departmentGroups = $accessPackageData.$department
-        $groupDNs += $departmentGroups
-        Write-Output "Ajout de $($departmentGroups.Count) groupes pour le département: $department"
-    } elseif (-not [string]::IsNullOrEmpty($department)) {
-        Write-Warning "Département '$department' non trouvé dans le fichier access package"
+    foreach ($accessPackage in $accessPackageList){
+        # Ajouter les groupes spécifiques au département si fourni
+        if (-not [string]::IsNullOrEmpty($accessPackage) -and $accessPackageData.PSObject.Properties.Name -contains $accessPackage) {
+            $accessPackageGroups = $accessPackageData.$accessPackage
+            $groupDNs += $accessPackageGroups
+            Write-Output "Ajout de $($accessPackageGroups.Count) groupes pour le département: $accessPackage"
+        } elseif (-not [string]::IsNullOrEmpty($accessPackage)) {
+            Write-Warning "Département '$accessPackage' non trouvé dans le fichier access package"
+        }
     }
-
     Write-Output "Total de $($groupDNs.Count) groupes à traiter"
 
     # Convertir les noms de groupes en DNs complets si nécessaire
@@ -236,66 +246,51 @@ try {
     $removedGroups = @()
 
     try {
-        $genericPath = "$PSScriptRoot\..\Files\access_package_groupe_ad_generic.json"
-        if (Test-Path $genericPath) {
-            Write-Output "Chargement du fichier generic access package: $genericPath"
-            try {
-                $genericContent = Get-Content -Path $genericPath -Raw
-                $genericPackages = $genericContent | ConvertFrom-Json
-                Write-Output "Fichier generic parsé avec succès"
 
-                # Iterate packages (skip Commun)
-                foreach ($pkgName in $genericPackages.PSObject.Properties.Name) {
-                    if ($pkgName -eq 'Commun') { continue }
+        # Iterate packages (skip Commun)
+        foreach ($pkgName in $accessPackageData.PSObject.Properties.Name) {
+            if ($pkgName -eq 'Commun') { continue }
 
-                    $pkgGroups = $genericPackages.$pkgName
-                    if (-not $pkgGroups) { continue }
+            $pkgGroups = $accessPackageData.$pkgName
+            if (-not $pkgGroups) { continue }
 
-                    $isMemberAll = $true
+            $isMemberAll = $true
 
-                    foreach ($pkgGroup in $pkgGroups) {
-                        try {
-                            $member = Get-ADGroupMember -Identity $pkgGroup -Recursive -ErrorAction Stop | Where-Object { $_.SamAccountName -eq $user.SamAccountName }
-                            if (-not $member) {
-                                $isMemberAll = $false
-                                break
-                            }
-                        }
-                        catch {
-                            # If group doesn't exist or cannot be queried, treat as not a member for safety
-                            Write-Warning "Impossible d'interroger le groupe '$pkgGroup' pour le package '$pkgName': $($_.Exception.Message)"
-                            $isMemberAll = $false
-                            break
-                        }
-                    }
-
-                    if ($isMemberAll) {
-                        Write-Output "L'utilisateur est membre complet de l'access package '$pkgName' -> suppression de tous les groupes"
-                        $removedThisPackage = @()
-                        foreach ($pkgGroup in $pkgGroups) {
-                            try {
-                                Write-Output "Suppression de l'utilisateur du groupe: $pkgGroup"
-                                Remove-ADGroupMember -Identity $pkgGroup -Members $user.SamAccountName -Confirm:$false -ErrorAction Stop
-                                $removedThisPackage += $pkgGroup
-                                $removedGroups += $pkgGroup
-                            }
-                            catch {
-                                Write-Warning "Échec suppression de $pkgGroup : $($_.Exception.Message)"
-                                # collect error
-                                $errors += "Erreur suppression de $pkgGroup du package $pkgName : $($_.Exception.Message)"
-                            }
-                        }
-
-                        if ($removedThisPackage.Count -gt 0) { $removedPackages += $pkgName }
+            foreach ($pkgGroup in $pkgGroups) {
+                try {
+                    $member = Get-ADGroupMember -Identity $pkgGroup -Recursive -ErrorAction Stop | Where-Object { $_.SamAccountName -eq $user.SamAccountName }
+                    if (-not $member) {
+                        $isMemberAll = $false
+                        break
                     }
                 }
+                catch {
+                    # If group doesn't exist or cannot be queried, treat as not a member for safety
+                    Write-Warning "Impossible d'interroger le groupe '$pkgGroup' pour le package '$pkgName': $($_.Exception.Message)"
+                    $isMemberAll = $false
+                    break
+                }
             }
-            catch {
-                Write-Warning "Erreur lors du parsing du generic access package: $($_.Exception.Message)"
+
+            if ($isMemberAll) {
+                Write-Output "L'utilisateur est membre complet de l'access package '$pkgName' -> suppression de tous les groupes"
+                $removedThisPackage = @()
+                foreach ($pkgGroup in $pkgGroups) {
+                    try {
+                        Write-Output "Suppression de l'utilisateur du groupe: $pkgGroup"
+                        Remove-ADGroupMember -Identity $pkgGroup -Members $user.SamAccountName -Confirm:$false -ErrorAction Stop
+                        $removedThisPackage += $pkgGroup
+                        $removedGroups += $pkgGroup
+                    }
+                    catch {
+                        Write-Warning "Échec suppression de $pkgGroup : $($_.Exception.Message)"
+                        # collect error
+                        $errors += "Erreur suppression de $pkgGroup du package $pkgName : $($_.Exception.Message)"
+                    }
+                }
+
+                if ($removedThisPackage.Count -gt 0) { $removedPackages += $pkgName }
             }
-        }
-        else {
-            Write-Output "Fichier generic access package non trouvé: $genericPath"
         }
     }
     catch {
@@ -350,7 +345,7 @@ try {
         Status = "Success"
         UserPrincipalName = $userPrincipalName
         UserSamAccountName = $user.SamAccountName
-        Department = $department
+        AccessPackages = $accessPackages
         TotalGroupsProcessed = $groupDNs.Count
         SuccessGroups = $successGroups
         FailedGroups = $failedGroups
@@ -371,7 +366,7 @@ catch {
     $result = @{
         Status = "Error"
         UserPrincipalName = $userPrincipalName
-        Department = $department
+        AccessPackages = $accessPackages
         ErrorMessage = $_.Exception.Message
         StackTrace = $_.ScriptStackTrace
         ExecutionEnvironment = "Azure Automation"
@@ -391,7 +386,7 @@ Write-Output "RUNBOOK_RESULT: $jsonResult"
 Write-Output "=== RÉSULTAT FINAL ==="
 Write-Output "Statut: $($result.Status)"
 Write-Output "Utilisateur: $($result.UserPrincipalName)"
-Write-Output "Département: $($result.Department)"
+Write-Output "Département: $($result.AccessPackages)"
 Write-Output "Groupes traités: $($result.TotalGroupsProcessed)"
 Write-Output "Succès: $($result.SuccessCount)"
 Write-Output "Échecs: $($result.FailureCount)"
