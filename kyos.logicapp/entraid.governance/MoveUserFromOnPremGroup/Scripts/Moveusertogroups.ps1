@@ -46,12 +46,8 @@ function Get-AccessPackageData {
     if (-not [string]::IsNullOrEmpty($JsonString)) {
         #Write-Output "Utilisation du JSON fourni en paramètre"
         try {
-            #$decodedJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($JsonString))
-            #$accessPackageData = $decodedJson | ConvertFrom-Json
-
-            # TMP OVERRIDE FOR QUAL
-            $str = '{"Développement Commercial et Support": ["T_GRP_developpementcommercialetsupport"], "Crédits": ["T_GRP_credits"],"Salle des marchés": ["T_GRP_salledesmarches"],"Solutions patrimoniales": ["T_GRP_solutionspatrimoniales"],"Risk Management": ["T_GRP_riskmanagement"],"Ressources Humaines": ["T_GRP_ressourceshumaines"],"Organisation": ["T_GRP_organisation"],"Logistique et Organisation - Services Généraux et Réception Genève": ["T_GRP_logistiqueetorganisationservicesgenerauxetreceptiongeneve"],"Informatique - Infrastructure": ["T_GRP_informatiqueinfrastructure"],"Logistique et Organisation - Logistique et RSE": ["T_GRP_logistiqueetorganisationlogistiqueetrse"],"Juridique": ["T_GRP_juridique"],"Investissements": ["T_GRP_investissements"],"Informatique - Développement IT": ["T_GRP_informatiquedeveloppementit"],"Informatique - Applications Bancaires": ["T_GRP_informatiqueapplicationsbancaires"],"Information Management et Analysis (MIS)": ["T_GRP_informationmanagementetanalysis(mis)"],"Gérants indépendants": ["T_GRP_gerantsindependants"],"Gestion institutionnelle": ["T_GRP_gestioninstitutionnelle"],"Gestion Yverdon-les-Bains": ["T_GRP_gestionyverdonlesbains"],"Gestion Nyon": ["T_GRP_gestionnyon"],"Gestion Neuchâtel": ["T_GRP_gestionneuchatel"],"Gestion Lausanne": ["T_GRP_gestionlausanne"],"Gestion La Chaux-de-Fonds": ["T_GRP_gestionlachauxdefonds"],"Fichier central / Documentation clientèle": ["T_GRP_fichiercentraldocumentationclientele"],"Comptabilité / Finance": ["T_GRP_comptabilitefinance"],"Compliance": ["T_GRP_compliance"],"Commun": ["T_GRP_commun"],"Business Support": ["T_GRP_businesssupport"],"Business Risk Management": ["T_GRP_businessriskmanagement"],"Back office": ["T_GRP_backoffice"],"Acquisition digitale et Marketing": ["T_GRP_acquisitiondigitaleetmarketing"],"Solutions d''Investissement": ["T_GRP_solutionsdinvestissement"],"Gestion Genève": ["T_GRP_gestiongeneve"],"Fiscalité opérationnelle": ["T_GRP_fiscaliteoperationnelle"],"Direction": ["T_GRP_direction"]}'
-            $accessPackageData = $str | ConvertFrom-Json
+            $decodedJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($JsonString))
+            $accessPackageData = $decodedJson | ConvertFrom-Json
             
             #Write-Output "JSON paramètre parsé avec succès"
             return $accessPackageData
