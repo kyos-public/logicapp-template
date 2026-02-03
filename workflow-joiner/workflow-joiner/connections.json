@@ -2,18 +2,17 @@
   "managedApiConnections": {
     "azureautomation": {
       "api": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/providers/Microsoft.Web/connections/azureautomation"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/providers/Microsoft.Web/connections/azureautomation"
       },
       "connection": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/resourceGroups/@appsettings('WORKFLOWS_RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsettings('AZUREAUTOMATION_CONNECTION_NAME')"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/resourceGroups/@appsetting('RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsetting('AZUREAUTOMATION_CONNECTION_NAME')"
       },
       "authentication": {
         "type": "ManagedServiceIdentity",
         "identity": {
-          "userAssignedIdentity": "@appsettings('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
+          "userAssignedIdentity": "@appsetting('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
         }
       },
-      "connectionRuntimeUrl": "@appsettings('AZUREAUTOMATION_CONNECTION_RUNTIME_URL')",
       "connectionProperties": {
         "authentication": {
           "type": "ManagedServiceIdentity",
@@ -23,18 +22,17 @@
     },
     "keyvault": {
       "api": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/providers/Microsoft.Web/locations/switzerlandnorth/managedApis/keyvault"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/providers/Microsoft.Web/locations/switzerlandnorth/managedApis/keyvault"
       },
       "connection": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/resourceGroups/@appsettings('WORKFLOWS_RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsettings('KEYVAULT_CONNECTION_NAME')"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/resourceGroups/@appsetting('RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsetting('KEYVAULT_CONNECTION_NAME')"
       },
       "authentication": {
         "type": "ManagedServiceIdentity",
         "identity": {
-          "userAssignedIdentity": "@appsettings('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
+          "userAssignedIdentity": "@appsetting('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
         }
       },
-      "connectionRuntimeUrl": "@appsettings('KEYVAULT_CONNECTION_RUNTIME_URL')",
       "connectionProperties": {
         "authentication": {
           "type": "ManagedServiceIdentity",
@@ -44,33 +42,31 @@
     },
     "acsemail": {
       "api": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/providers/Microsoft.Web/locations/switzerlandnorth/managedApis/acsemail"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/providers/Microsoft.Web/locations/switzerlandnorth/managedApis/acsemail"
       },
       "connection": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/resourceGroups/@appsettings('WORKFLOWS_RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsettings('ACSEMAIL_CONNECTION_NAME')"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/resourceGroups/@appsetting('RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsetting('ACSEMAIL_CONNECTION_NAME')"
       },
       "authentication": {
         "type": "ManagedServiceIdentity",
         "identity": {
-          "userAssignedIdentity": "@appsettings('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
+          "userAssignedIdentity": "@appsetting('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
         }
-      },
-      "connectionRuntimeUrl": "@appsettings('ACSEMAIL_CONNECTION_RUNTIME_URL')"
+      }
     },
     "azurecommunicationservicessms": {
       "api": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/providers/Microsoft.Web/locations/switzerlandnorth/managedApis/azurecommunicationservicessms"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/providers/Microsoft.Web/locations/switzerlandnorth/managedApis/azurecommunicationservicessms"
       },
       "connection": {
-        "id": "/subscriptions/@appsettings('WORKFLOWS_SUBSCRIPTION_ID')/resourceGroups/@appsettings('WORKFLOWS_RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsettings('AZURECOMMUNICATIONSERVICESSMS_CONNECTION_NAME')"
+        "id": "/subscriptions/@appsetting('SUBSCRIPTION_ID')/resourceGroups/@appsetting('RESOURCE_GROUP_NAME')/providers/Microsoft.Web/connections/@appsetting('AZURECOMMUNICATIONSERVICESSMS_CONNECTION_NAME')"
       },
       "authentication": {
         "type": "ManagedServiceIdentity",
         "identity": {
-          "userAssignedIdentity": "@appsettings('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
+          "userAssignedIdentity": "@appsetting('USER_ASSIGNED_IDENTITY_RESOURCE_ID')"
         }
-      },
-      "connectionRuntimeUrl": "@appsettings('AZURECOMMUNICATIONSERVICESSMS_CONNECTION_RUNTIME_URL')"
+      }
     }
   },
   "serviceProviderConnections": {
@@ -82,7 +78,7 @@
       "serviceProvider": {
         "id": "/serviceProviders/AzureFile"
       },
-      "displayName": "@appsettings('AZUREFILE_CONNECTION_NAME')"
+      "displayName": "@appsetting('AZUREFILE_CONNECTION_NAME')"
     }
   }
 }
