@@ -1,3 +1,5 @@
+# to be decommissioned soon, replaced by AD driven automation, instead of WF driven
+
 param (
     [Parameter(Mandatory=$true)]
     [string]$userPrincipalName,
