@@ -10,7 +10,7 @@ param (
 Import-Module ActiveDirectory -ErrorAction Stop
 
 # Fetch AZ Automation Variable
-$searchBaseOU = Get-AutomationVariable -Name 'SearchBaseOU'
+$searchBaseOU = Get-AutomationVariable -Name 'aut-var-searchbaseou'
 
 # Initialize result variables
 $result = @{

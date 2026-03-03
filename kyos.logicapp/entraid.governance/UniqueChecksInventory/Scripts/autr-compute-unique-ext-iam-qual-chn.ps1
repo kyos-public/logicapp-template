@@ -320,10 +320,10 @@ try {
     Initialize-ADModule
     
     # Get the SearchBase OU from Azure Automation variable
-    $searchBaseOU = Get-AutomationVariable -Name "SearchBaseOU"
+    $searchBaseOU = Get-AutomationVariable -Name "aut-var-searchbaseou"
     
     if ([string]::IsNullOrEmpty($searchBaseOU)) {
-        throw "SearchBaseOU automation variable is not set or is empty."
+        throw "aut-var-searchbaseou automation variable is not set or is empty."
     }
     
     # Generate unique SAM account name

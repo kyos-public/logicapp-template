@@ -208,14 +208,14 @@ try {
     # Get SearchBase from automation variable
     Write-LogMessage "Retrieving SearchBase from automation variable..."
     try {
-        $searchBase = Get-AutomationVariable -Name 'SearchBaseOU' -ErrorAction Stop
+        $searchBase = Get-AutomationVariable -Name 'aut-var-searchbaseou' -ErrorAction Stop
         if ([string]::IsNullOrWhiteSpace($searchBase)) {
-            throw "SearchBaseOU automation variable is empty"
+            throw "aut-var-searchbaseou automation variable is empty"
         }
         Write-LogMessage "SearchBase OU: $searchBase" -Level Success
     }
     catch {
-        throw "Failed to retrieve SearchBaseOU automation variable: $_"
+        throw "Failed to retrieve aut-var-searchbaseou automation variable: $_"
     }
     
     # Import Active Directory module

@@ -40,11 +40,11 @@ catch {
 
 # Get SearchBase OU from Azure Automation variable
 try {
-    $SearchBaseOU = Get-AutomationVariable -Name 'SearchBaseOU'
+    $SearchBaseOU = Get-AutomationVariable -Name 'aut-var-searchbaseou'
     Write-Verbose "Using SearchBase OU: $SearchBaseOU" -Verbose
 }
 catch {
-    Write-Error "Failed to retrieve SearchBaseOU automation variable: $_"
+    Write-Error "Failed to retrieve aut-var-searchbaseou automation variable: $_"
     throw
 }
 
