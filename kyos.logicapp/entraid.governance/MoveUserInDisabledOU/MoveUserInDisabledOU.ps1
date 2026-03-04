@@ -9,6 +9,9 @@ param (
 # Import Active Directory module
 Import-Module ActiveDirectory -ErrorAction Stop
 
+# Fetch AZ Automation Variable
+$searchBaseOU = Get-AutomationVariable -Name 'aut-var-searchbaseou'
+
 # Initialize result variables
 $result = @{
     Success = $false
@@ -22,7 +25,7 @@ $result = @{
 try {
     # Resolve user account
     Write-Output "Searching for user: $userPrincipalName"
-    $user = Get-ADUser -Filter "UserPrincipalName -eq '$userPrincipalName'" -Properties DistinguishedName, Enabled -ErrorAction Stop
+    $user = Get-ADUser -Filter "UserPrincipalName -eq '$userPrincipalName'" -Properties DistinguishedName, Enabled -SearchBase $searchBaseOU -ErrorAction Stop
     
     if ($null -eq $user) {
         throw "User not found: $userPrincipalName"
@@ -54,7 +57,7 @@ try {
         Move-ADObject -Identity $user.DistinguishedName -TargetPath $disabledOU -ErrorAction Stop
         
         # Verify the move was successful
-        $movedUser = Get-ADUser -Identity $user.SamAccountName -Properties DistinguishedName -ErrorAction Stop
+        $movedUser = Get-ADUser -Identity $user.SamAccountName -Properties DistinguishedName -SearchBase $searchBaseOU -ErrorAction Stop
         if ($movedUser.DistinguishedName -like "*$disabledOU*") {
             $result.Success = $true
             $result.Message = "User successfully moved to disabled OU"

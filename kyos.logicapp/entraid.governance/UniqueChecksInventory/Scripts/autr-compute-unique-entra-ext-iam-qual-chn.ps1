@@ -281,10 +281,10 @@ try {
     Write-Warning "Script started for: $FirstName $LastName"
     
     # Get the UPN domain from Azure Automation variable
-    $upnDomain = Get-AutomationVariable -Name "UPNDomain"
+    $upnDomain = Get-AutomationVariable -Name "aut-var-upn-domain"
     
     if ([string]::IsNullOrEmpty($upnDomain)) {
-        throw "UPNDomain automation variable is not set or is empty."
+        throw "aut-var-upn-domain automation variable is not set or is empty."
     }
     
     Write-Warning "UPN Domain: $upnDomain"
