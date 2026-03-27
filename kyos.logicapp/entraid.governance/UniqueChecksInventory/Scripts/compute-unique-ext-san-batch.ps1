@@ -117,7 +117,7 @@ function Get-UniqueSamAccountName {
             try {
                 $existingUser = Get-ADUser -Filter "SamAccountName -eq '$samAccountName'" -SearchBase $SearchBase -ErrorAction SilentlyContinue
             } catch {
-                # Ignore errors, treat as not found
+                throw "Failed to query Active Directory for SamAccountName '$samAccountName': $($_.Exception.Message)"
             }
 
             if ($null -eq $existingUser) {
@@ -274,10 +274,10 @@ function Get-UniqueCN {
     # Build the exact match pattern
     if ($AccountType -eq "ADM") {
         $lastNameUpper = ($LastName.Trim() -replace '\s+', '').ToUpper()
-        $exactPattern = "^Admin $firstName $lastNameUpper( \d+)?$"
+        $exactPattern = "^Admin $([regex]::Escape($firstName)) $([regex]::Escape($lastNameUpper))( \d+)?$"
     } else {
         $lastName = $LastName.Trim() -replace '\s+', ''
-        $exactPattern = "^$firstName $lastName( \d+)?$"
+        $exactPattern = "^$([regex]::Escape($firstName)) $([regex]::Escape($lastName))( \d+)?$"
     }
 
     # Count AD homonyms
