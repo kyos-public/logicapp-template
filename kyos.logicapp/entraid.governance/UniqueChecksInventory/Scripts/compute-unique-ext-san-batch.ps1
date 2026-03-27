@@ -261,10 +261,10 @@ function Get-UniqueCN {
     try {
         if ($AccountType -eq "ADM") {
             $lastNameUpper = ($LastName.Trim() -replace '\s+', '').ToUpper()
-            $searchFilter = "CN -like 'Admin $firstName $lastNameUpper*'"
+            $searchFilter = "CN -like 'Admin {0} {1}*'" -f $firstName,$lastNameUpper
         } else {
             $lastName = $LastName.Trim() -replace '\s+', ''
-            $searchFilter = "CN -like '$firstName $lastName*'"
+            $searchFilter = "CN -like '{0} {1}*'" -f $firstName,$lastName
         }
         $existingUsers = @(Get-ADUser -Filter $searchFilter -SearchBase $SearchBase -Properties CN -ErrorAction SilentlyContinue)
     } catch {
