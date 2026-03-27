@@ -117,7 +117,7 @@ function Get-UniqueSamAccountName {
             try {
                 $existingUser = Get-ADUser -Filter "SamAccountName -eq '$samAccountName'" -SearchBase $SearchBase -ErrorAction SilentlyContinue
             } catch {
-                # Ignore errors, treat as not found
+                throw "Failed to query Active Directory for SamAccountName '$samAccountName': $($_.Exception.Message)"
             }
 
             if ($null -eq $existingUser) {
