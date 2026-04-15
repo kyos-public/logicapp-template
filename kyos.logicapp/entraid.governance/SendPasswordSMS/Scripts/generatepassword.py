@@ -26,7 +26,11 @@ def generate_password(length=20, entra_compatible=False):
         # Use full character set
         alphabet = string.ascii_letters + string.digits + string.punctuation
     
-    password = ''.join(secrets.choice(alphabet) for i in range(length))
+    # Guarantee at least one digit, then fill the rest from the full alphabet
+    chars = [secrets.choice(string.digits)]
+    chars += [secrets.choice(alphabet) for _ in range(length - 1)]
+    secrets.SystemRandom().shuffle(chars)
+    password = ''.join(chars)
     return password
 
 # Azure Automation Runbook Parameters
