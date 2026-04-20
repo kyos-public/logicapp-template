@@ -39,7 +39,7 @@ try {
     # Search for the user by employeeId across the entire domain
     Write-Output "Searching for user with employeeId: $EmployeeId"
 
-    $user = Get-ADUser -Filter "employeeId -eq '$EmployeeId'" `
+    $user = Get-ADUser -Filter "employeeNumber -eq '$EmployeeId'" `
                        -Properties employeeId, manager, extensionAttribute7, DisplayName, DistinguishedName `
                        -ErrorAction Stop
 
