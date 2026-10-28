@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: logicapp-template
+  namespace: kyos
+  description: "Kyos Logic App template (public)."
+  tags:
+    - logic-app
+    - azure
+    - template
+    - public
+  annotations:
+    github.com/project-slug: kyos-public/logicapp-template
+spec:
+  type: template
+  owner: group:kyos/it-team
+  system: managed-services
